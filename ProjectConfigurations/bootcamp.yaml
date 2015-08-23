@@ -1,0 +1,5 @@
+Uri: "http://git.dako.de/bootcamp.git"
+Type: :Binary
+Branches: ['cc/pu']
+Name: "bootcamp"
+RemoteBranch: "cc/pu"
