@@ -35,6 +35,7 @@ class GitBuilder
 		@config['Branches'].each { |branch| @branch << @git.branch(branch) }
 		@remote = @git.remotes.each {|remote| remote}
     @git.reset_hard('origin/master')
+
     first = @git.gcommit(@git.object('origin/master').sha)
     @testObject = @git.object('origin/cc/test')
     puts "CC/TEST: #{@testObject.sha}"
@@ -56,15 +57,7 @@ class GitBuilder
         found = true
       end
     end
-    # @test = @git.gtree('origin/cc/test')
-		# @test = @git.object('origin/cc/pu')
-		# @git.log(2).each do |com|
-		# 	puts com.message
-		# end
 
-    # @git.log.each {|commit| puts commit.message }
-    # puts 'end'
-    # @git.pull(@remote, 'cc/test')
 		puts "#{@commits}\n\n\n"
 
 		puts"\n\n\n COUNT #{i} #{@commits}"
