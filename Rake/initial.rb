@@ -9,7 +9,6 @@ end
 
 file :init_dirs do
   mkdir_p 'WorkingDir/repos'
-  mkdir_p 'WorkingDir/internal'
   mkdir_p 'WorkingDir/external'
   mkdir_p 'WorkingDir/log/'
 end
