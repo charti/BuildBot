@@ -3,17 +3,23 @@ require 'date'
 require 'yaml'
 require 'logger'
 require 'rake'
+require 'pathname'
 
 class GitBuilder
+
   def initialize(repo_config)
     @paths = { :config => File.expand_path(repo_config, $project_root + '/ProjectConfigurations/')}
     @config = YAML.load(File.read(@paths[:config]))
     @logger = create_logger(:system)
     @logger.info("Start Build Process with configuration: #{@paths[:config]}")
     load_git
-    get_branch_commits
-    puts @commits
+    load_branch_story
+		@git.reset_hard(@commits['origin/cc/pu'][0])
   end
+
+  # Creates a new Logger for 'target' in log dir.
+  # @param [Symbol] target
+  # @return [Logger]
   def create_logger(target)
     unless @paths.key?(:log)
       @paths.store(:log, Hash.new)
@@ -26,42 +32,51 @@ class GitBuilder
     end
     raise "targeted Logger #{target} already exists!"
   end
+
   private
+  # Loads '@git' as 'Git::Base'.
+  # Clones the repo if necessary. Fetches changes from remote and resets --hard to
+  # 'ReleaseBranch'
   def load_git
-    if File.directory?("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}/.git")
-      @git = Git.open(
-        "WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}/",
-        :log => create_logger(:git))
-      @git.fetch('origin')
+		@paths.store(:git, File.dirname("#{$project_root}/WorkingDir/repos/" +
+		                                "#{@config['Name']}/clone/#{@config['Name']}/.git/*"))
+		if File.directory?(@paths[:git])
+      @git = Git.open("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}", :log => create_logger(:git))
+      @git.fetch(@config['Remote'])
     else
-      @git = Git.clone(@config['Uri'], @config['Name'], :path => "WorkingDir/repos/#{@config['Name']}/clone")
-    end
-    @commits = { 'master' => @git.gcommit(@git.object(@config['ReleaseBranch']).sha) }
-    @git.reset_hard(@commits['master'])
-    @logger.info("Git Repo: #{@config['Name']} successfully loaded")
+	    Git.clone(@config['Uri'], @config['Name'], { :path => "WorkingDir/repos/#{@config['Name']}/clone",
+	                                                 :branch => @config['ReleaseBranch'].slice!("@config['Remote']/") })
+		end
+
+		@commits = { 'master' => @git.gcommit(@git.object(@config['ReleaseBranch'])) }
+		@git.reset_hard(@commits['master'].sha)
+    @logger.info("Git Repo: #{@config['Name']} successfully loaded on Branch: #{@git.current_branch}")
   end
-	def get_branch_commits
+
+  # Gets the commit story of all 'MergeBranches', who are ahead of @config'ReleaseBranch'
+	def load_branch_story
 		@config['MergeBranches'].each do |branch|
       begin
-        commits = get_commits(branch) if @git.object(branch)
+        commits = get_commit_story(branch) if @git.object(branch)
         @commits[branch] = commits unless commits.empty?
       rescue
         @logger.error("No Head for Remote Branch: #{branch}. Check #{@paths[:config]}")
       end
 		end
   end
-  def get_commits(branch)
+
+  # Finds all commits from given Branch down to the 'ReleaseBranch' Head.
+  # @param [String] branch
+  # @return [Array]
+  def get_commit_story(branch)
     commits = Array.new
     parent = @git.gcommit(@git.object(branch).sha)
     until parent.sha == @commits['master'].sha
       commits << parent
       parent = @git.gcommit(parent.parent)
     end
-    if commits.empty?
-      @logger.debug("Branch: '#{branch}' has no commits to merge.")
-      return nil
-    else
-      return commits
-    end
+    commits.empty?
+    @logger.debug("Branch: '#{branch}' has no commits to merge.") if commits.empty?
+    return commits
   end
 end
