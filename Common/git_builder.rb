@@ -19,7 +19,7 @@ class GitBuilder
     load_branch_story
   end
 
-  # Creates a new Logger for 'target' in log dir.
+  # Creates a new [Logger] for 'target' in log dir.
   # @param [Symbol] target
   # @return [Logger]
   def create_logger(target)
@@ -36,7 +36,7 @@ class GitBuilder
   end
 
   private
-  # Loads '@git' as 'Git::Base'.
+  # Loads '@git' as [Git::Base']
   # Clones the repo if necessary. Fetches changes from remote and resets --hard to
   # 'ReleaseBranch'
   def load_git

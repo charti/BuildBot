@@ -6,7 +6,7 @@ Kernel.system *%w<rake -f Rake/initial.rb>
 
 gb = GitBuilder.new('invers.yaml')
 
-puts gb
+puts gb.to_yaml
 
 
 
