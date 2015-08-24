@@ -7,14 +7,16 @@ require 'pathname'
 
 class GitBuilder
 
-  def initialize(repo_config)
+	attr_reader :git, :commits, :config, :paths
+
+	# @param [String] repo_config 'filename.yaml'
+	def initialize(repo_config)
     @paths = { :config => File.expand_path(repo_config, $project_root + '/ProjectConfigurations/')}
     @config = YAML.load(File.read(@paths[:config]))
     @logger = create_logger(:system)
     @logger.info("Start Build Process with configuration: #{@paths[:config]}")
     load_git
     load_branch_story
-		@git.reset_hard(@commits['origin/cc/pu'][0])
   end
 
   # Creates a new Logger for 'target' in log dir.
@@ -40,16 +42,16 @@ class GitBuilder
   def load_git
 		@paths.store(:git, File.dirname("#{$project_root}/WorkingDir/repos/" +
 		                                "#{@config['Name']}/clone/#{@config['Name']}/.git/*"))
-		if File.directory?(@paths[:git])
-      @git = Git.open("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}", :log => create_logger(:git))
-      @git.fetch(@config['Remote'])
-    else
-	    Git.clone(@config['Uri'], @config['Name'], { :path => "WorkingDir/repos/#{@config['Name']}/clone",
-	                                                 :branch => @config['ReleaseBranch'].slice!("@config['Remote']/") })
+		unless File.directory?(@paths[:git])
+			Git.clone(@config['Uri'], @config['Name'], { :path   => "WorkingDir/repos/#{@config['Name']}/clone",
+			                                             :branch => @config['ReleaseBranch'].slice!("@config['Remote']/") })
 		end
 
+		@git = Git.open("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}", :log => create_logger(:git))
+    @git.fetch(@config['Remote'])
 		@commits = { 'master' => @git.gcommit(@git.object(@config['ReleaseBranch'])) }
 		@git.reset_hard(@commits['master'].sha)
+
     @logger.info("Git Repo: #{@config['Name']} successfully loaded on Branch: #{@git.current_branch}")
   end
 
