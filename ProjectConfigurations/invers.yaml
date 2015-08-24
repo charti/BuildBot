@@ -3,3 +3,4 @@ Type: :Binary
 MergeBranches: ['origin/cc/pu', 'origin/cc/test']
 Name: "InVers"
 ReleaseBranch: 'origin/master'
+Remote: 'origin'
