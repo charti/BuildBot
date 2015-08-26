@@ -1,5 +1,5 @@
 require_relative 'Common/git_builder'
-require_relative 'Rake/work'
+require_relative 'Rake/build'
 require 'git'
 require 'rake'
 
@@ -7,11 +7,8 @@ $project_root = File.dirname(__FILE__)
 
 Kernel.system *%w<rake -f Rake/initial.rb>
 
-gb = GitBuilder.new('invers.yaml')
+gb = GitBuilder.new('bootcamp.yaml')
 
-Rake::Task["work:do"].invoke(gb)
+Rake::Task[:default].invoke(gb)
 
 # puts gb.to_yaml
-
-
-

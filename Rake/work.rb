@@ -7,7 +7,6 @@ namespace :work do
 
 	task :do, [:gb] => [:init, :prepare_commit_dir] do |t, args|
 		puts t.to_s
-		puts test.to_s
 	end
 
 	task :init, :gb do |t, args|
@@ -25,7 +24,5 @@ namespace :work do
 			mkdir_p File.expand_path("#{$path_internal}/#{branch.gsub('/', '-')}")
 		end
 	end
-
-
 
 end

@@ -42,7 +42,7 @@ class GitBuilder
   def checkout_commit(commit)
     sha = commit.is_a?(Git::Object::Commit) ? commit.sha : commit
     @git.checkout(sha)
-    @logger.debug("Detached Head while checkout commit: #{sha}") unless detached?
+    @logger.debug("Detached Head while checkout commit: #{sha}") if detached?
   end
 
   private
@@ -56,7 +56,8 @@ class GitBuilder
 			                                             :branch => @config['ReleaseBranch'].slice!("@config['Remote']/") })
 		end
 
-		@git = Git.open("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}", :log => create_logger(:git))
+		@git = Git.open("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}",
+                    :log => create_logger(:git))
     @git.fetch(@config['Remote'])
 		@commits = { 'master' => @git.gcommit(@git.object(@config['ReleaseBranch'])) }
 		@git.reset_hard(@commits['master'].sha)
@@ -81,14 +82,9 @@ class GitBuilder
   # @return [Array]
   def get_commit_story(branch)
     commits = Array.new
-    parent = @git.gcommit(@git.object(branch).sha)
-    until parent.sha == @commits['master'].sha
-      commits << parent
-      parent = @git.gcommit(parent.parent)
-    end
-    commits.empty?
-    @logger.debug("Branch: '#{branch}' has no commits to merge.") if commits.empty?
-    return commits
+    @git.log.between(@git.object(@config['ReleaseBranch']).sha, @git.object(branch).sha)
+        .each { |commit| commits << commit }
+    commits
   end
 
 end

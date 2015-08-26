@@ -1,5 +1,7 @@
 Uri: "http://git.dako.de/bootcamp.git"
 Type: :Binary
-Branches: ['cc/pu']
+MergeBranches: ['origin/cc/test']
 Name: "bootcamp"
 RemoteBranch: "cc/pu"
+ReleaseBranch: 'origin/cc/pu'
+Remote: 'origin'
