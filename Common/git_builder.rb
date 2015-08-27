@@ -2,6 +2,9 @@ require 'git'
 require 'date'
 require 'yaml'
 require 'logger'
+require 'rake'
+
+Rake::Task.load '../Rake/build'
 
 class GitBuilder
 
@@ -15,7 +18,15 @@ class GitBuilder
     @logger.info("Start Build Process with configuration: #{@paths[:config]}")
     load_git
     load_branch_story
-    @git.checkout('master') if detached?
+    commit_merge_ff(@commits['origin/cc/pu'][1])
+    #@git.checkout(@config['ReleaseBranch']) if detached?
+  end
+
+  def check_commits(branch)
+    @commits[branch].each do |commit|
+      commit_merge_ff(commit)
+      Rake::Task(:default).invoke(self)
+    end
   end
 
   # Creates a new [Logger] for 'target' in log dir.
@@ -43,6 +54,10 @@ class GitBuilder
     sha = commit.is_a?(Git::Object::Commit) ? commit.sha : commit
     @git.checkout(sha)
     @logger.debug("Detached Head while checkout commit: #{sha}") if detached?
+  end
+
+  def commit_merge_ff(commit)
+    @git.merge(commit)
   end
 
   private

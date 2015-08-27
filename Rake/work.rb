@@ -5,7 +5,7 @@ namespace :work do
 
 	gb = nil
 
-	task :do, [:gb] => [:init, :prepare_commit_dir] do |t, args|
+	task :do, [:work_path] => [:init, :prepare_commit_dir] do |t, args|
 		puts t.to_s
 	end
 

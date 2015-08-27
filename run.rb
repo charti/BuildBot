@@ -7,8 +7,6 @@ $project_root = File.dirname(__FILE__)
 
 Kernel.system *%w<rake -f Rake/initial.rb>
 
-gb = GitBuilder.new('bootcamp.yaml')
-
-Rake::Task[:default].invoke(gb)
+gb = GitBuilder.new('invers.yaml')
 
 # puts gb.to_yaml
