@@ -4,14 +4,15 @@ require 'albacore'
 task :default, [:gb] => [:init, :do_work]
 
 task :init, [:gb] do |t, args|
-  gb = args[:gb]
+  puts "in rake"
+  $gb = args[:gb]
 end
 
 task :do_work do
 
 end
 
-namespace :build do
+namespace build_types do
   build :binary do
 
   end

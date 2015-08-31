@@ -3,8 +3,7 @@ require 'date'
 require 'yaml'
 require 'logger'
 require 'rake'
-
-Rake::Task.load '../Rake/build'
+require_relative '../Rake/build'
 
 class GitBuilder
 
@@ -18,6 +17,7 @@ class GitBuilder
     @logger.info("Start Build Process with configuration: #{@paths[:config]}")
     load_git
     load_branch_story
+    each_branch_check
     commit_merge_ff(@commits['origin/cc/pu'][1])
     #@git.checkout(@config['ReleaseBranch']) if detached?
   end
@@ -58,6 +58,18 @@ class GitBuilder
 
   def commit_merge_ff(commit)
     @git.merge(commit)
+  end
+
+  def each_branch_check
+    # each branches commits, except start commit
+    @commits.keys.grep(/#{Regexp.quote(@config['Remote'])}\/[aA-zZ0-9\/]*/).each do |branch|
+      @logger.debug("Check Branch #{branch}")
+      @commits[branch].reverse_each do |commit|
+        @logger.debug("check commit: #{commit}")
+        @git.merge(commit)
+        Rake.application[:default].invoke(self)
+      end
+    end
   end
 
   private
