@@ -11,15 +11,12 @@ class GitBuilder
 
 	# @param [String] repo_config 'filename.yaml'
 	def initialize(repo_config)
-    @paths = { :config => File.expand_path(repo_config, $project_root + '/ProjectConfigurations/')}
-    @config = YAML.load(File.read(@paths[:config]))
+		initilize_config(repo_config)
     @logger = create_logger(:system)
     @logger.info("Start Build Process with configuration: #{@paths[:config]}")
     load_git
     load_branch_story
     each_branch_check
-    commit_merge_ff(@commits['origin/cc/pu'][1])
-    #@git.checkout(@config['ReleaseBranch']) if detached?
   end
 
   def check_commits(branch)
@@ -33,13 +30,13 @@ class GitBuilder
   # @param [Symbol] target
   # @return Logger
   def create_logger(target)
-    unless @paths.key?(:log)
+    unless @paths[:log].nil?
       @paths.store(:log, Hash.new)
-      @paths[:log].store(:r, "WorkingDir/log/#{@config['Name']}/")
+      @paths[:log].store(:r, File.expand_path("WorkingDir/log/#{@config['Name']}/"))
       FileUtils.mkpath @paths[:log][:r]
     end
     unless @paths[:log].key?(target)
-      @paths[:log].store(target, "#{@paths[:log][:r]}#{target}-#{Time.new.strftime("%Y-%m-%d_%H%M%S")}.log")
+      @paths[:log].store(target, "#{@paths[:log][:r]}/#{target}-#{Time.new.strftime("%Y-%m-%d_%H%M%S")}.log")
       return Logger.new(@paths[:log][target])
     end
     raise "targeted Logger #{target} already exists!"
@@ -60,15 +57,24 @@ class GitBuilder
     @git.merge(commit)
   end
 
+	# Merges -ff each Commit on each Branch and tries to build each Commit to WorkingDir/internal/'CommitSha'
   def each_branch_check
     # each branches commits, except start commit
-    @commits.keys.grep(/#{Regexp.quote(@config['Remote'])}\/[aA-zZ0-9\/]*/).each do |branch|
+		@commits.each_pair do |branch, commits|
+			next unless commits.is_a?(Array)
+
       @logger.debug("Check Branch #{branch}")
-      @commits[branch].reverse_each do |commit|
+
+			commits.reverse_each do |commit|
         @logger.debug("check commit: #{commit}")
         @git.merge(commit)
-        Rake.application[:default].invoke(self)
-      end
+
+        # build Commit
+        Rake.application[:default].invoke(self, commit)
+			end
+
+			# rebase --hard to +ReleaseBranch+ Commit
+			@git.reset_hard(@commits['master'].sha)
     end
   end
 
@@ -77,13 +83,13 @@ class GitBuilder
   # Clones the repo if necessary. Fetches changes from remote and resets --hard to +ReleaseBranch+
   def load_git
 		@paths.store(:git, File.dirname("#{$project_root}/WorkingDir/repos/" +
-		                                "#{@config['Name']}/clone/#{@config['Name']}/.git/*"))
+		                                "#{@config['Name']}/.git/*"))
 		unless File.directory?(@paths[:git])
-			Git.clone(@config['Uri'], @config['Name'], { :path   => "WorkingDir/repos/#{@config['Name']}/clone",
+			Git.clone(@config['Uri'], @config['Name'], { :path   => "WorkingDir/repos",
 			                                             :branch => @config['ReleaseBranch'].slice!("@config['Remote']/") })
 		end
 
-		@git = Git.open("WorkingDir/repos/#{@config['Name']}/clone/#{@config['Name']}",
+		@git = Git.open("WorkingDir/repos/#{@config['Name']}",
                     :log => create_logger(:git))
     @git.fetch(@config['Remote'])
 		@commits = { 'master' => @git.gcommit(@git.object(@config['ReleaseBranch'])) }
@@ -99,7 +105,7 @@ class GitBuilder
         commits = get_commit_story(branch) if @git.object(branch)
         @commits[branch] = commits unless commits.empty?
       rescue
-        @logger.error("No Head for Remote Branch: #{branch}. Check #{@paths[:config]}")
+        @logger.error("No Head found for Remote Branch: #{branch}. Check #{@paths[:config]}")
       end
 		end
   end
@@ -113,5 +119,14 @@ class GitBuilder
         .each { |commit| commits << commit }
     commits
   end
+
+	def initilize_config(repo_config)
+		@paths = { :config => File.expand_path(repo_config, $project_root + '/ProjectConfigurations/') }
+		@config = YAML.load(File.read(@paths[:config]))
+		@paths = { :log => File.expand_path(@config['Name'], $project_root + '/WorkingDir/log/'),
+               :internal => File.expand_path(@config['Name'], $project_root + '/WorkingDir/internal/'),
+               :external => File.expand_path(@config['Name'], $project_root + '/WorkingDir/external/'),
+               :source => File.expand_path(@config['Name'], $project_root + '/WorkingDir/repos/') }
+	end
 
 end
