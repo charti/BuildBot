@@ -19,26 +19,6 @@ build :msbuild do |msb|
   msb.add_parameter "/flp:LogFile=#{log_file('build')}"
 end
 
-build :publish do |msb|
-  msb.sln = "D:/Projects/svservice/svservice/svservice.sln"
-  msb.prop 'WarningLevel', 2
-  msb.cores = 4
-  msb.target = ['Clean', 'Rebuild']
-  msb.prop 'Configuration', 'Release'
-  msb.prop 'PrecompileBeforePublish', true
-  msb.prop 'EnableUpdateable', false
-  msb.prop 'WDPMergeOption', 'MergeAllOutputsToASingleAssembly'
-  msb.prop 'SingleAssemblyName', 'MergedHttpHandler.dll'
-
-  msb.prop 'UseWPP_CopyWebApplication', true
-  msb.prop 'PipelineDependsOnBuild', false
-  msb.prop 'Outdir', 'C:/test/bin/'
-  msb.prop 'Webprojectoutputdir', 'C:/test/deploy/'
-  msb.logging = 'detailed'
-  msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
-end
-
-
 def log_file(log_file_name)
   log_file_name + ".log"
 end

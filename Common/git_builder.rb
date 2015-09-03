@@ -11,7 +11,7 @@ class GitBuilder
 
 	# @param [String] repo_config 'filename.yaml'
 	def initialize(repo_config)
-		initilize_config(repo_config)
+		initialize_config(repo_config)
     @logger = create_logger(:system)
     @logger.info("Start Build Process with configuration: #{@paths[:config]}")
     load_git
@@ -103,7 +103,11 @@ class GitBuilder
 		@config['MergeBranches'].each do |branch|
       begin
         commits = get_commit_story(branch) if @git.object(branch)
-        @commits[branch] = commits unless commits.empty?
+        unless commits.empty?
+          @commits[branch] = commits
+        else
+          @logger.debug"No commits found. Branch: #{branch} is not ahead of #{@config['ReleaseBranch']}"
+        end
       rescue
         @logger.error("No Head found for Remote Branch: #{branch}. Check #{@paths[:config]}")
       end
@@ -120,7 +124,7 @@ class GitBuilder
     commits
   end
 
-	def initilize_config(repo_config)
+	def initialize_config(repo_config)
 		@paths = { :config => File.expand_path(repo_config, $project_root + '/ProjectConfigurations/') }
 		@config = YAML.load(File.read(@paths[:config]))
 		@paths = { :log => File.expand_path(@config['Name'], $project_root + '/WorkingDir/log/'),
