@@ -1,0 +1,14 @@
+require 'rake'
+
+directory "tmp"
+
+task :bla => :default
+
+task :default => "tmp/hello.tmp"
+
+configs = Rake::FileList.new("tmp/*.example")
+
+file 'tmp/hello.tmp' => 'tmp/hello.tmp.example' do |t|
+  cp(t.prerequisites[0], t.name)
+  puts :bla
+end

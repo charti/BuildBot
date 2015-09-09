@@ -3,23 +3,37 @@ require 'albacore'
 
 require 'find'
 
-task :default, [:gb, :current_commit] => [:init, :clean, :do_work] do |t|
+task :default, [:gb, :current_commit] => [:init, :do_work] do |t|
 	t.reenable
 end
 
 task :init, [:gb, :current_commit] do |t, args|
   $gb = args[:gb]
   $commit_sha = args[:current_commit]
+  FileList['**/*.example'].each do |src|
+    file 'C:/something.bla' => src do
+      puts 'bla'
+    end
+  end
   mkdir_p "#{$gb.paths[:log][:r]}/build"
 	t.reenable
 end
 
-task :clean
-
-task :do_work do |t|
-	Rake.application["build_types:#{$gb.config['Type']}"].invoke
+task :do_work => [:config_examples] do |t|
+  begin
+	  Rake.application["build_types:#{$gb.config['Type']}"].invoke
+    $gb.logger.info("Commit #{$commit_sha} build was successful.")
+  rescue Exception => e
+    $gb.logger.error("Commit #{$commit_sha} build failed:\n#{e.to_s}")
+  end
   Rake.application["build_types:#{$gb.config['Type']}"].reenable
 	t.reenable
+end
+
+task :config_examples do |t|
+  file 'bla.txt' do
+    touch "#{}"
+  end
 end
 
 namespace :build_types do
