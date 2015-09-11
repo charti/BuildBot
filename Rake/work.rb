@@ -11,7 +11,6 @@ namespace :work do
 
 	task :init, :gb do |t, args|
 		$gb = args[:gb]
-		gb = $gb
 		$gb.logger.debug('Starte Initialisierung in Task :work')
 	end
 

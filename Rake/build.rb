@@ -3,7 +3,7 @@ require 'albacore'
 
 require 'find'
 
-task :default, [:gb, :current_commit] => [:init, :do_work] do |t|
+task :build, [:gb, :current_commit] => [:init, :do_work] do |t|
 	t.reenable
 end
 
@@ -22,9 +22,10 @@ end
 task :do_work => [:config_examples] do |t|
   begin
 	  Rake.application["build_types:#{$gb.config['Type']}"].invoke
-    $gb.logger.info("Commit #{$commit_sha} build was successful.")
-  rescue Exception => e
-    $gb.logger.error("Commit #{$commit_sha} build failed:\n#{e.to_s}")
+    LOGGER.info(:build) { "Commit #{$commit_sha} build was successful." }
+  rescue => e
+    LOGGER.error(:build) { "Commit #{$commit_sha} build failed:" +
+			"#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
   end
   Rake.application["build_types:#{$gb.config['Type']}"].reenable
 	t.reenable
@@ -46,6 +47,7 @@ namespace :build_types do
 		                                            "#{$commit_sha}.log")};Verbosity=Detailed;"
 	  msb.cores = 2
 	  msb.prop :Outdir, "#{$gb.paths[:internal]}/#{$commit_sha}"
+	  msb.nologo
   end
 
   build :web_application do |msb|
@@ -57,6 +59,7 @@ namespace :build_types do
     msb.cores = 2
     msb.add_parameter "/flp:LogFile=#{File.join("#{$gb.paths[:log][:r]}/build",
                                                 "#{$commit_sha}.log")};Verbosity=Detailed;"
+    msb.nologo
   end
 
 end

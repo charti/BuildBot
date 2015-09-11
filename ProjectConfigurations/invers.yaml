@@ -1,6 +1,6 @@
 Uri: "https://github.com/charti/InVers.git"
 Type: :binary
-MergeBranches: ['origin/cc/pu', 'origin/cc/test', 'origin/cc/behind']
+MergeBranches: ['origin/cc/pu', 'origin/cc/test', 'origin/cc/behind', 'origin/cc/notAvaileble' ]
 Name: "InVers"
 ReleaseBranch: 'origin/master'
 Remote: 'origin'
