@@ -19,22 +19,32 @@ task :init, [:gb, :current_commit] do |t, args|
 	t.reenable
 end
 
-task :do_work => [:config_examples] do |t|
-  begin
-	  Rake.application["build_types:#{$gb.config['Type']}"].invoke
-    LOGGER.info(:build) { "Commit #{$commit_sha} build was successful." }
-  rescue => e
-    LOGGER.error(:build) { "Commit #{$commit_sha} build failed:" +
-			"#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
-  end
-  Rake.application["build_types:#{$gb.config['Type']}"].reenable
+task :do_work do |t|
+	build_type = "build_types:#{$gb.config['Type']}"
+
+	[build_type].each do |task_name|
+		begin
+			Rake.application[task_name].invoke
+			LOGGER.info(task_name) { "Commit #{$commit_sha} task execution was successful." }
+			Rake.application['testing:nunit'].invoke
+		rescue => e
+			LOGGER.error(task_name) { "Commit #{$commit_sha} task execution failed failed:" +
+					"#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
+		end
+		Rake.application[task_name].reenable
+		Rake.application['testing:nunit'].reenable
+	end
+
 	t.reenable
 end
 
-task :config_examples do |t|
-  file 'bla.txt' do
-    touch "#{}"
+namespace :testing do
+
+  test_runner :nunit do |tr|
+    tr.files = FileList["WorkingDir/internal/#{$gb.config['Name']}/#{$commit_sha}/*test*dll"]
+    tr.exe = 'Tools/nunit/bin/nunit-console.exe'
   end
+
 end
 
 namespace :build_types do
