@@ -17,13 +17,6 @@ class GitBuilder
     load_branch_story
   end
 
-  def check_commits(branch)
-    @commits[branch].each do |commit|
-      commit_merge_ff(commit)
-      Rake::Task(:default).invoke(self)
-    end
-  end
-
   # Creates a new [Logger] for 'target' in log dir.
   # @param [Symbol] target
   # @return Logger

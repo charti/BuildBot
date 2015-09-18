@@ -21,8 +21,13 @@ task :execute_pipeline do |t|
       Rake.application[:start].invoke
       LOGGER.info(@current_branch) { "Commit #{@current_commit} check was successful." }
     rescue => e
-      LOGGER.error(@current_branch) { "Commit #{@current_commit} check failed:" +
+      unless e.nil?
+        LOGGER.error(@current_branch) { "Commit #{@current_commit} check failed:" +
                                     "#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
+      else
+        LOGGER.unknown(@current_branch) { "#{e}" }
+      end
+
     end
 
     Rake.application[:start].all_prerequisite_tasks.each { |prereq| prereq.reenable }
