@@ -1,6 +1,10 @@
-Uri: "https://github.com/charti/InVers.git"
-Type: :binary
-MergeBranches: ['origin/cc/pu', 'origin/cc/test', 'origin/cc/behind', 'origin/cc/notAvaileble' ]
-Name: "InVers"
-ReleaseBranch: 'origin/master'
-Remote: 'origin'
+:Uri: "https://github.com/charti/InVers.git"
+:Type: :binary
+#:MergeBranches: ['origin/cc/pu', 'origin/cc/test', 'origin/cc/behind', 'origin/cc/notAvaileble', 'origin/cc/broken',
+#                'origin/cc/merge1', 'origin/cc/merge2']
+:MergeBranches: ['origin/cc/merge2']
+:Name: "InVers"
+:ReleaseBranch: 'origin/master'
+:Remote: 'origin'
+:AssemblyVersion: :build # :major.:minor.:build.:revision
+:AssemblyFileVersion: :revision #:major.:minor.:build.:revision

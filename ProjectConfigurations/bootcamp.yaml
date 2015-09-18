@@ -1,6 +1,8 @@
-Uri: "http://git.dako.de/bootcamp.git"
-Type: :web_application
-MergeBranches: ['origin/cc/test', 'origin/cc/test2', 'origin/cc/test3', 'origin/cc/behind', 'origin/cc/notAvailable']
-Name: "bootcamp"
-ReleaseBranch: 'origin/cc/master'
-Remote: 'origin'
+:Uri: "http://git.dako.de/bootcamp.git"
+:Type: :web_application
+:MergeBranches: ['origin/cc/test', 'origin/cc/test2', 'origin/cc/test3', 'origin/cc/behind', 'origin/cc/notAvailable']
+:Name: "bootcamp"
+:ReleaseBranch: 'origin/cc/master'
+:Remote: 'origin'
+:AssemblyVersion: :build # :major.:minor.:build.:revision
+:AssemblyFileVersion: :revision #:major.:minor.:build.:revision

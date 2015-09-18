@@ -10,19 +10,24 @@ task :execute_pipeline do |t|
   puts t
   mkdir_p "#{GB.paths[:log][:r]}/build"
 
-  GitBuilder.all_commits_do do |commit|
-    puts :all_commits_do
+  GitBuilder.all_commits_do do |branch, commit|
     @current_commit = commit
+    @versioning_required = branch != @current_branch
+    @current_branch = branch
+
+    puts "#{:all_commits_do} versioning_required:#{@versioning_required}"
 
     begin
       Rake.application[:start].invoke
+      LOGGER.info(@current_branch) { "Commit #{@current_commit} check was successful." }
     rescue => e
-      LOGGER.error(:Build) { "Check on Commit #{@current_commit} failed:" +
-                              "#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
+      LOGGER.error(@current_branch) { "Commit #{@current_commit} check failed:" +
+                                    "#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
     end
 
     Rake.application[:start].all_prerequisite_tasks.each { |prereq| prereq.reenable }
     Rake.application[:start].reenable
+
   end
 end
 
@@ -31,51 +36,73 @@ task :start => [:build, :test, :deploy] do |t|
 end
 
 desc 'versioning => compiling'
-task :build => :versioning do |t|
-  puts :build
+task :build => [:versioning, :copy_configs] do |t|
+  puts t
+	Rake.application[GB.config[:Type]].execute
+	LOGGER.info(:Build) { 'Build was successful.' }
+end
 
-  case GB.config['Type']
+task :copy_configs => '.config' do |t|
+	examples = FileList.new("#{GB.paths[:source]}/**/*.config.example")
 
-    when :binary
-      build_task = build :binary do |msb|
-        msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
+	examples.each do |config|
+		file config.sub('.example', '') => config do |dest|
+			puts 'bla'
+		end
+		file 'foo.txt' => 'test.test' do
+			touch 'foo.txt'
+		end
+	end
 
-        msb.target = [ :Clean, :Build ]
-        msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build",
-                                                    "#{@current_commit}.log")};Verbosity=detailed;"
-        #msb.cores = 2
-        msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_commit}/"
-        msb.nologo
-      end
-    when :web_applikation
-      build_task = build :web_application do |msb|
-        msb.sln = Dir.glob("#{GB.paths[:source]}/*.sln").first
-        msb.prop 'WarningLevel', 2
-        msb.cores = 2
-        msb.target = ['Clean', 'Rebuild']
-
-        msb.prop :Configuration, 'Release'
-        msb.prop :PrecompileBeforePublish, true
-        msb.prop :EnableUpdateable, false
-        msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
-        msb.prop :SingleAssemblyName, 'MergedHttpHandler.dll'
-        msb.prop :UseWPP_CopyWebApplication, true
-        msb.prop :PipelineDependsOnBuild, false
-        msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_commit}"
-        msb.prop :Webprojectoutputdir, "#{GB.paths[:external]}/#{@current_commit}"
-        msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
-      end
-  end
-
-  build_task.execute
+	file :configs => examples
 
 end
 
+file '.config' => FileList.new() do |t|
+	puts :bla
+end
+
 desc 'run unit tests'
-task :test
+task :test do |t|
+	puts t
+	LOGGER.info(:Test) { 'Testing was successful.' }
+end
 
 desc 'bumps version'
 task :versioning do |t|
+	next unless @versioning_required
+	puts t
+	assemblies = FileList.new("#{GB.paths[:source]}/**/AssemblyInfo.cs").each do |path|
+		new_assembly = ""
+
+		File.read(path).each_line do |line|
+			version_type = /(AssemblyVersion|AssemblyFileVersion)/.match(line)
+			if(version_type.nil? || line.include?('//'))
+				new_assembly << line
+			else
+				new_version = ""
+				version = /(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)\.(?<revision>[a-zA-Z\-\d+]+)/.match(line)
+
+				version.names.each do |group|
+					unless group.to_sym.eql?(GB.config[version_type[1].to_sym])
+						new_version << "#{version[group]}"
+					else
+						new_version << "#{version[group].to_i + 1}"
+					end
+					new_version << "#{'.' unless group.to_sym.eql?(:revision)}"
+				end
+
+				new_assembly << line.gsub(/(?<=")(.*)(?=")/, new_version)
+			end
+		end
+
+		File.write(path, new_assembly)
+	end
+
+	LOGGER.info(:Versioning) {"Bumped version for Assemblies:\n\t#{assemblies * "\n\t"}"}
+end
+
+task :merge do |t|
 
 end
 
@@ -84,95 +111,31 @@ task :deploy do |t|
   puts t
 end
 
-# task :build, [:gb, :current_commit] => [:init, :do_work] do |t|
-# 	t.reenable
-# end
-#
-# task :init, [:gb, :current_commit] do |t, args|
-#   $gb = args[:gb]
-#   $commit_sha = args[:current_commit]
-#   FileList['**/*.example'].each do |src|
-#     file 'C:/something.bla' => src do
-#       puts 'bla'
-#     end
-#   end
-#   mkdir_p "#{$gb.paths[:log][:r]}/build"
-# 	t.reenable
-# end
-#
-# task :do_work do |t|
-# 	build_type = "build_types:#{$gb.config['Type']}"
-#
-# 	[build_type].each do |task_name|
-# 		begin
-# 			Rake.application[task_name].invoke
-# 			LOGGER.info(task_name) { "Commit #{$commit_sha} task execution was successful." }
-# 			Rake.application['testing:nunit'].invoke
-# 		rescue => e
-# 			LOGGER.error(task_name) { "Commit #{$commit_sha} task execution failed failed:" +
-# 					"#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
-# 		end
-# 		Rake.application[task_name].reenable
-# 		Rake.application['testing:nunit'].reenable
-# 	end
-#
-# 	t.reenable
-# end
-#
-# namespace :testing do
-#
-#   test_runner :nunit do |tr|
-#     tr.files = FileList["WorkingDir/internal/#{$gb.config['Name']}/#{$commit_sha}/*test*dll"]
-#     tr.exe = 'Tools/nunit/bin/nunit-console.exe'
-#   end
-#
-# end
-#
-# namespace :build_types do
-#
-#   build :binary do |msb|
-# 		msb.sln  = Dir.glob("#{$gb.paths[:source]}/*.sln").first
-#
-#     msb.target = [ :Clean, :Build ]
-# 		msb.add_parameter "/flp:LogFile=#{File.join("#{$gb.paths[:log][:r]}/build",
-# 		                                            "#{$commit_sha}.log")};Verbosity=detailed;"
-# 	  #msb.cores = 2
-# 	  msb.prop :Outdir, "#{$gb.paths[:internal]}/#{$commit_sha}"
-# 	  msb.nologo
-#   end
-#
-#   build :web_application do |msb|
-#     msb.sln = Dir.glob("#{$gb.paths[:source]}/*.sln").first
-#     msb.target = ['Clean', 'Rebuild']
-#     msb.prop :Configuration, 'Release'
-#     msb.prop :WarningLevel, 2
-#     msb.prop :Outdir, "#{$gb.paths[:internal]}/#{$commit_sha}"
-#     msb.cores = 2
-#     msb.add_parameter "/flp:LogFile=#{File.join("#{$gb.paths[:log][:r]}/build",
-#                                                 "#{$commit_sha}.log")};Verbosity=detailed;"
-#     msb.nologo
-#   end
-#
-# end
-#
-# namespace :publish_types do
-#
-#   build :web_application do |msb|
-#     msb.sln = Dir.glob("#{$gb.paths[:source]}/*.sln").first
-#     msb.prop 'WarningLevel', 2
-#     msb.cores = 2
-#     msb.target = ['Clean', 'Rebuild']
-#
-#     msb.prop :Configuration, 'Release'
-#     msb.prop :PrecompileBeforePublish, true
-#     msb.prop :EnableUpdateable, false
-#     msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
-#     msb.prop :SingleAssemblyName, 'MergedHttpHandler.dll'
-#     msb.prop :UseWPP_CopyWebApplication, true
-#     msb.prop :PipelineDependsOnBuild, false
-#     msb.prop :Outdir, "#{$gb.paths[:internal]}/#{$commit_sha}"
-#     msb.prop :Webprojectoutputdir, "#{$gb.paths[:external]}/#{$commit_sha}"
-#     msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
-#   end
-#
-# end
+build :binary do |msb|
+	msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
+
+	msb.target = [ :Clean, :Build ]
+	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build",
+	                                            "#{@current_commit}.log")};Verbosity=detailed;"
+	msb.cores = 2
+	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_commit}/"
+	msb.nologo
+end
+
+build :web_application do |msb|
+	msb.sln = Dir.glob("#{GB.paths[:source]}/*.sln").first
+	msb.prop 'WarningLevel', 2
+	msb.cores = 2
+	msb.target = ['Clean', 'Rebuild']
+
+	msb.prop :Configuration, 'Release'
+	msb.prop :PrecompileBeforePublish, true
+	msb.prop :EnableUpdateable, false
+	msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
+	msb.prop :SingleAssemblyName, 'MergedHttpHandler.dll'
+	msb.prop :UseWPP_CopyWebApplication, true
+	msb.prop :PipelineDependsOnBuild, false
+	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_commit}"
+	msb.prop :Webprojectoutputdir, "#{GB.paths[:external]}/#{@current_commit}"
+	msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
+end
