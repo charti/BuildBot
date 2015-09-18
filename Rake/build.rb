@@ -10,7 +10,7 @@ task :execute_pipeline do |t|
   puts t
   mkdir_p "#{GB.paths[:log][:r]}/build"
 
-  GitBuilder.all_commits_do do |branch, commit|
+  GB.all_commits_do do |branch, commit|
     @current_commit = commit
     @versioning_required = branch != @current_branch
     @current_branch = branch
@@ -42,24 +42,16 @@ task :build => [:versioning, :copy_configs] do |t|
 	LOGGER.info(:Build) { 'Build was successful.' }
 end
 
-task :copy_configs => '.config' do |t|
-	examples = FileList.new("#{GB.paths[:source]}/**/*.config.example")
+task :copy_configs do |t|
+  config_examples = FileList.new("#{GB.paths[:source]}/**/*.config.example")
+  next if config_examples.empty?
 
-	examples.each do |config|
-		file config.sub('.example', '') => config do |dest|
-			puts 'bla'
-		end
-		file 'foo.txt' => 'test.test' do
-			touch 'foo.txt'
-		end
-	end
-
-	file :configs => examples
-
-end
-
-file '.config' => FileList.new() do |t|
-	puts :bla
+  puts t
+  config_examples.each do |example|
+    dest = example.sub('.example', '')
+    cp(example, dest)
+    LOGGER.debug(:Copy) { "Copied #{example} to #{dest}" }
+  end
 end
 
 desc 'run unit tests'
@@ -115,10 +107,10 @@ build :binary do |msb|
 	msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
 
 	msb.target = [ :Clean, :Build ]
-	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build",
+	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{@current_branch}/",
 	                                            "#{@current_commit}.log")};Verbosity=detailed;"
 	msb.cores = 2
-	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_commit}/"
+	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_branch}/#{@current_commit}/"
 	msb.nologo
 end
 
@@ -135,7 +127,7 @@ build :web_application do |msb|
 	msb.prop :SingleAssemblyName, 'MergedHttpHandler.dll'
 	msb.prop :UseWPP_CopyWebApplication, true
 	msb.prop :PipelineDependsOnBuild, false
-	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_commit}"
-	msb.prop :Webprojectoutputdir, "#{GB.paths[:external]}/#{@current_commit}"
+	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_branch}/#{@current_commit}"
+	msb.prop :Webprojectoutputdir, "#{GB.paths[:IIS]}"
 	msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
 end

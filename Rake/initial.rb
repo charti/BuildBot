@@ -13,7 +13,7 @@ require_relative '../Rake/build'
 task :default, [:config] => [:run]
 
 directory 'WorkingDir' do
-	FileUtils.makedirs %w<WorkingDir/external WorkingDir/internal WorkingDir/log>
+	FileUtils.makedirs %w<WorkingDir/external WorkingDir/internal WorkingDir/log WorkingDir/IIS>
 end
 
 directory 'Tools' do

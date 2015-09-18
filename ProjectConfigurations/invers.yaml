@@ -3,6 +3,7 @@
 #:MergeBranches: ['origin/cc/pu', 'origin/cc/test', 'origin/cc/behind', 'origin/cc/notAvaileble', 'origin/cc/broken',
 #                'origin/cc/merge1', 'origin/cc/merge2']
 :MergeBranches: ['origin/cc/merge2']
+#:MergeBranches: ['origin/cc/pu']
 :Name: "InVers"
 :ReleaseBranch: 'origin/master'
 :Remote: 'origin'
