@@ -8,12 +8,15 @@ require_relative '../Common/git_builder'
 desc 'Iterates over any commit and invokes :start task.'
 task :execute_pipeline do |t|
   puts t
-  mkdir_p "#{GB.paths[:log][:r]}/build"
 
   GB.all_commits_do do |branch, commit|
     @current_commit = commit
     @versioning_required = branch != @current_branch
     @current_branch = branch
+
+    br = @current_branch.gsub('/','_')
+    mkdir_p %W(#{GB.paths[:log][:r]}/build/#{br} #{GB.paths[:internal]}/#{br}
+               #{GB.paths[:externel]}/#{br})
 
     puts "#{:all_commits_do} versioning_required:#{@versioning_required}"
 
@@ -28,10 +31,13 @@ task :execute_pipeline do |t|
         LOGGER.unknown(@current_branch) { "#{e}" }
       end
 
+      reenable_pipeline
+
+			raise e
+
     end
 
-    Rake.application[:start].all_prerequisite_tasks.each { |prereq| prereq.reenable }
-    Rake.application[:start].reenable
+    reenable_pipeline
 
   end
 end
@@ -60,9 +66,15 @@ task :copy_configs do |t|
 end
 
 desc 'run unit tests'
-task :test do |t|
-	puts t
+task :test => :nunit do |t|
 	LOGGER.info(:Test) { 'Testing was successful.' }
+end
+
+test_runner :nunit do |tr|
+	br = @current_branch.gsub('/','_')
+
+	tr.files = FileList["WorkingDir/internal/#{GB.config[:Name]}/#{br}/#{@current_commit}/*test*.dll"]
+	tr.exe = 'Tools/nunit/bin/nunit-console.exe'
 end
 
 desc 'bumps version'
@@ -85,9 +97,12 @@ task :versioning do |t|
 						new_version << "#{version[group]}"
 					else
 						new_version << "#{version[group].to_i + 1}"
+						break
 					end
 					new_version << "#{'.' unless group.to_sym.eql?(:revision)}"
 				end
+
+				(3 - new_version.count('.')).times { new_version << '.0'}
 
 				new_assembly << line.gsub(/(?<=")(.*)(?=")/, new_version)
 			end
@@ -109,17 +124,20 @@ task :deploy do |t|
 end
 
 build :binary do |msb|
-	msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
+	br = @current_branch.gsub('/','_')
 
+	msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
 	msb.target = [ :Clean, :Build ]
-	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{@current_branch}/",
+	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{br}/",
 	                                            "#{@current_commit}.log")};Verbosity=detailed;"
 	msb.cores = 2
-	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_branch}/#{@current_commit}/"
+	msb.prop :Outdir, "#{GB.paths[:internal]}/#{br}/#{@current_commit}/"
 	msb.nologo
 end
 
 build :web_application do |msb|
+	br = @current_branch.gsub('/','_')
+
 	msb.sln = Dir.glob("#{GB.paths[:source]}/*.sln").first
 	msb.prop 'WarningLevel', 2
 	msb.cores = 2
@@ -132,7 +150,12 @@ build :web_application do |msb|
 	msb.prop :SingleAssemblyName, 'MergedHttpHandler.dll'
 	msb.prop :UseWPP_CopyWebApplication, true
 	msb.prop :PipelineDependsOnBuild, false
-	msb.prop :Outdir, "#{GB.paths[:internal]}/#{@current_branch}/#{@current_commit}"
+	msb.prop :Outdir, "#{GB.paths[:internal]}/#{br}/#{@current_commit}"
 	msb.prop :Webprojectoutputdir, "#{GB.paths[:IIS]}"
 	msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
+end
+
+def reenable_pipeline
+	Rake.application[:start].all_prerequisite_tasks.each { |prereq| prereq.reenable }
+	Rake.application[:start].reenable
 end

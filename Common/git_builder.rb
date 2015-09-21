@@ -1,5 +1,4 @@
 require 'git'
-require 'date'
 require 'yaml'
 require 'logger'
 require 'rake'
@@ -12,7 +11,10 @@ class GitBuilder
 	# @param [String] repo_config 'filename.yaml'
 	def initialize(repo_config)
 		initialize_config(repo_config)
-    LOGGER.info(:Git) {"Start Build Process with configuration: '#{@paths[:config]}'"}
+  end
+
+  def start
+    LOGGER.info(:Git) {"Start CI Process with configuration: '#{@paths[:config]}'"}
     load_git
     load_branch_story
   end
@@ -23,24 +25,13 @@ class GitBuilder
   def create_logger(target)
     unless @paths[:log].nil?
       @paths.store(:log, Hash.new)
-      @paths[:log].store(:r, File.expand_path("WorkingDir/log/#{@config['Name']}/"))
+      @paths[:log].store(:r, File.expand_path("WorkingDir/log/#{@config[:Name]}/"))
       FileUtils.mkpath @paths[:log][:r]
     end
     unless @paths[:log].key?(target)
       @paths[:log].store(target, "#{@paths[:log][:r]}/#{target}-#{Time.new.strftime("%Y-%m-%d_%H%M%S")}.log")
       return Logger.new(@paths[:log][target])
     end
-    raise "targeted Logger #{target} already exists!"
-  end
-
-  def checkout_commit(commit)
-    sha = commit.is_a?(Git::Object::Commit) ? commit.sha : commit
-    @git.checkout(sha)
-    LOGGER.debug("Detached Head while checkout commit: #{sha}") if detached?
-  end
-
-  def commit_merge_ff(commit)
-    @git.merge(commit)
   end
 
   def all_commits_do
@@ -53,7 +44,13 @@ class GitBuilder
         LOGGER.info(:Git) {"Check #{commit}"}
         @git.merge(commit)
 
-        yield branch, commit
+        begin
+					yield branch, commit
+        rescue
+					LOGGER.error(:Merge) { "Skipping #{branch} for merging. Reason:#{commit.to_s}" }
+					break
+				end
+
       end
 
       # rebase --hard to +ReleaseBranch+ Commit
@@ -62,11 +59,36 @@ class GitBuilder
   end
 
   private
+
+	def initialize_config(repo_config)
+		@paths = { :config => File.expand_path(repo_config, 'ProjectConfigurations/') }
+		@config = YAML.load(File.read(@paths[:config]))
+
+		paths = { :log => File.expand_path(@config[:Name], 'WorkingDir/log/'),
+		          :internal => File.expand_path(@config[:Name], 'WorkingDir/internal/'),
+		          :external => File.expand_path(@config[:Name], 'WorkingDir/external/'),
+		          :source => File.expand_path(@config[:Name], 'WorkingDir/repos/'),
+		          :IIS => File.expand_path('WorkingDir/IIS') }
+
+		paths.each_pair do |k, v|
+			@paths.store(k, v)
+		end
+	end
+
+	# Finds all commits from given Branch down to the +ReleaseBranch+ Head.
+	# @param [String] branch
+	# @return [Array]
+	def get_commit_story(branch)
+		commits = Array.new
+		@git.log.between(@git.object(@config[:ReleaseBranch]).sha, @git.object(branch).sha)
+				.each { |commit| commits << commit }
+		commits
+	end
+
   # Loads +@git+ as [Git::Base]
   # Clones the repo if necessary. Fetches changes from remote and resets --hard to +ReleaseBranch+
   def load_git
-		@paths.store(:git, File.dirname("#{PROJECT_ROOT}/WorkingDir/repos/" +
-		                                "#{@config[:Name]}/.git/*"))
+		@paths.store(:git, File.expand_path("WorkingDir/repos/#{@config[:Name]}/.git"))
 		unless File.directory?(@paths[:git])
 			Git.clone(@config[:Uri], @config[:Name], { :path   => "WorkingDir/repos",
                                                  :branch => @config[:ReleaseBranch].sub("#{@config[:Remote]}/", '') })
@@ -99,30 +121,5 @@ class GitBuilder
 		msg = @commits.keys.keep_if { |k| @commits[k].is_a?(Array) }
 		LOGGER.info(:Git) { "Branches to merge: #{msg}" }
   end
-
-  # Finds all commits from given Branch down to the +ReleaseBranch+ Head.
-  # @param [String] branch
-  # @return [Array]
-  def get_commit_story(branch)
-    commits = Array.new
-    @git.log.between(@git.object(@config[:ReleaseBranch]).sha, @git.object(branch).sha)
-        .each { |commit| commits << commit }
-    commits
-  end
-
-	def initialize_config(repo_config)
-    @paths = { :config => File.expand_path(repo_config, PROJECT_ROOT + '/ProjectConfigurations/') }
-		@config = YAML.load(File.read(@paths[:config]))
-
-    paths = { :log => File.expand_path(@config[:Name], PROJECT_ROOT + '/WorkingDir/log/'),
-              :internal => File.expand_path(@config[:Name], PROJECT_ROOT + '/WorkingDir/internal/'),
-              :external => File.expand_path(@config[:Name], PROJECT_ROOT + '/WorkingDir/external/'),
-              :source => File.expand_path(@config[:Name], PROJECT_ROOT + '/WorkingDir/repos/'),
-              :IIS => File.expand_path('WorkingDir/IIS') }
-
-		paths.each_pair do |k, v|
-			@paths.store(k, v)
-		end
-	end
 
 end

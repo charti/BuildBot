@@ -1,27 +1,14 @@
-require 'rake'
-require_relative '../Common/git_builder'
+require 'net/smtp'
 
-namespace :work do
+message = <<MESSAGE_END
+From: Private Person <me@fromdomain.com>
+To: A Test User <test@todomain.com>
+Subject: SMTP e-mail test
 
-	gb = nil
+This is a test e-mail message.
+MESSAGE_END
 
-	task :do, [:work_path] => [:init, :prepare_commit_dir] do |t, args|
-		puts t.to_s
-	end
-
-	task :init, :gb do |t, args|
-		$gb = args[:gb]
-		$gb.logger.debug('Starte Initialisierung in Task :work')
-	end
-
-	task :prepare_commit_dir do |t|
-		$path_internal = "WorkingDir/internal/#{$gb.config['Name']}"
-		rm_rf $path_internal
-
-		$gb.commits.each_key do |branch|
-			next if branch == 'master'
-			mkdir_p File.expand_path("#{$path_internal}/#{branch.gsub('/', '-')}")
-		end
-	end
-
+Net::SMTP.start('localhost') do |smtp|
+	smtp.send_message message, 'chr.cha4rt@gmail.com',
+	                  'chr.chart@gmail.com'
 end
