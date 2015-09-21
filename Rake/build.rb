@@ -15,8 +15,7 @@ task :execute_pipeline do |t|
     @current_branch = branch
 
     br = @current_branch.gsub('/','_')
-    mkdir_p %W(#{GB.paths[:log][:r]}/build/#{br} #{GB.paths[:internal]}/#{br}
-               #{GB.paths[:externel]}/#{br})
+    mkdir_p %W(#{GB.paths[:log][:r]}/build/#{br} #{GB.paths[:internal]}/#{br}) #{GB.paths[:external]}/#{br}
 
     puts "#{:all_commits_do} versioning_required:#{@versioning_required}"
 
@@ -43,7 +42,9 @@ task :execute_pipeline do |t|
 end
 
 desc 'building => testing => deploying'
-task :start => [:build, :test, :deploy] do |t|
+task :start => [:build,
+                #:test,
+                :deploy] do |t|
 end
 
 desc 'versioning => compiling'
@@ -79,6 +80,7 @@ end
 
 desc 'bumps version'
 task :versioning do |t|
+  next
 	next unless @versioning_required
 	puts t
 	assemblies = FileList.new("#{GB.paths[:source]}/**/AssemblyInfo.cs").each do |path|
@@ -90,7 +92,7 @@ task :versioning do |t|
 				new_assembly << line
 			else
 				new_version = ""
-				version = /(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)\.(?<revision>[a-zA-Z\-\d+]+)/.match(line)
+				version = /(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)[-\.](?<revision>[a-zA-Z\-\d+]+)/.match(line)
 
 				version.names.each do |group|
 					unless group.to_sym.eql?(GB.config[version_type[1].to_sym])
@@ -127,7 +129,10 @@ build :binary do |msb|
 	br = @current_branch.gsub('/','_')
 
 	msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
-	msb.target = [ :Clean, :Build ]
+	msb.target = [:Clean, :Build]
+
+  msb.prop :DebugType, 'pdbonly'
+  msb.prop :ExcludeGeneratedDebugSymbol, false
 	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{br}/",
 	                                            "#{@current_commit}.log")};Verbosity=detailed;"
 	msb.cores = 2
@@ -141,18 +146,27 @@ build :web_application do |msb|
 	msb.sln = Dir.glob("#{GB.paths[:source]}/*.sln").first
 	msb.prop 'WarningLevel', 2
 	msb.cores = 2
-	msb.target = ['Clean', 'Rebuild']
+	msb.target = [:Build]
 
 	msb.prop :Configuration, 'Release'
+	msb.prop :DebugType, 'pdbonly'
 	msb.prop :PrecompileBeforePublish, true
 	msb.prop :EnableUpdateable, false
+	msb.prop :AutoParameterizationWebConfigConnectionStrings, false
+  msb.prop :ExcludeGeneratedDebugSymbol, false
+  msb.prop :WebPublishMethod, 'FileSystem'
+  msb.prop :DeleteExistingFiles, true
+  msb.prop :DebugSymbols, true
+  msb.prop :DeleteAppCodeCompiledFiles, true
+  msb.prop :UseMerge, true
 	msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
-	msb.prop :SingleAssemblyName, 'MergedHttpHandler.dll'
+	msb.prop :SingleAssemblyName, 'MergedHttpHandler'
 	msb.prop :UseWPP_CopyWebApplication, true
 	msb.prop :PipelineDependsOnBuild, false
+  msb.prop :Webprojectoutputdir, "#{GB.paths[:IIS]}"
 	msb.prop :Outdir, "#{GB.paths[:internal]}/#{br}/#{@current_commit}"
-	msb.prop :Webprojectoutputdir, "#{GB.paths[:IIS]}"
-	msb.add_parameter "/flp:LogFile=#{log_file('publish')}"
+	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{br}/",
+                                              "#{@current_commit}.log")};Verbosity=detailed;"
 end
 
 def reenable_pipeline

@@ -122,4 +122,6 @@ class GitBuilder
 		LOGGER.info(:Git) { "Branches to merge: #{msg}" }
   end
 
+
+
 end
