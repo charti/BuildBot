@@ -13,6 +13,7 @@ task :execute_pipeline do |t|
     @current_commit = commit
     @versioning_required = branch != @current_branch
     @current_branch = branch
+    @merge = false
 
     br = @current_branch.gsub('/','_')
     mkdir_p %W(#{GB.paths[:log][:r]}/build/#{br} #{GB.paths[:internal]}/#{br}) #{GB.paths[:external]}/#{br}
@@ -39,11 +40,13 @@ task :execute_pipeline do |t|
     reenable_pipeline
 
   end
+
+  GB.merge_branches(@new_version)
 end
 
 desc 'building => testing => deploying'
 task :start => [:build,
-                #:test,
+                :test,
                 :deploy] do |t|
 end
 
@@ -91,22 +94,22 @@ task :versioning do |t|
 			if(version_type.nil? || line.include?('//'))
 				new_assembly << line
 			else
-				new_version = ""
+				@new_version = ""
 				version = /(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)[-\.](?<revision>[a-zA-Z\-\d+]+)/.match(line)
 
 				version.names.each do |group|
 					unless group.to_sym.eql?(GB.config[version_type[1].to_sym])
-						new_version << "#{version[group]}"
+						@new_version << "#{version[group]}"
 					else
-						new_version << "#{version[group].to_i + 1}"
+						@new_version << "#{version[group].to_i + 1}"
 						break
 					end
-					new_version << "#{'.' unless group.to_sym.eql?(:revision)}"
+					@new_version << "#{'.' unless group.to_sym.eql?(:revision)}"
 				end
 
-				(3 - new_version.count('.')).times { new_version << '.0'}
+				(3 - @new_version.count('.')).times { @new_version << '.0'}
 
-				new_assembly << line.gsub(/(?<=")(.*)(?=")/, new_version)
+				new_assembly << line.gsub(/(?<=")(.*)(?=")/, @new_version)
 			end
 		end
 
@@ -158,7 +161,7 @@ build :web_application do |msb|
   msb.prop :DeleteExistingFiles, true
   msb.prop :DebugSymbols, true
   msb.prop :DeleteAppCodeCompiledFiles, true
-  msb.prop :UseMerge, true
+  msb.prop :UseMerge, @merge
 	msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
 	msb.prop :SingleAssemblyName, 'MergedHttpHandler'
 	msb.prop :UseWPP_CopyWebApplication, true

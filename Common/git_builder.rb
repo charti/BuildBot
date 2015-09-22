@@ -46,8 +46,11 @@ class GitBuilder
 
         begin
 					yield branch, commit
+          @merge_branches << branch
         rescue
-					LOGGER.error(:Merge) { "Skipping #{branch} for merging. Reason:#{commit.to_s}" }
+					LOGGER.error(:Merge) { "Skipping #{branch} for merging. Reason:#{commit.to_s}" +
+              "\n\t#{commit.author.name}: #{commit.author.email}\n\t#{commit.message.to_s}"}
+          @merge_branches -= [branch]
 					break
 				end
 
@@ -56,6 +59,31 @@ class GitBuilder
       # rebase --hard to +ReleaseBranch+ Commit
       @git.reset_hard(@commits[:master].sha)
     end unless @commits.nil?
+  end
+
+  def merge_branches(new_version=nil)
+    merged = Array.new
+    if @merge_branches.empty?
+      LOGGER.info(:Git) { "There are no qualified branches to merge. Please consult the log for the reason." }
+      return nil
+    end
+      @merge_branches.each do |branch|
+        begin
+          @git.merge(branch, "Merge remote-tracking branch #{branch} into #{@git.current_branch}")
+          LOGGER.debug(:Git) { "Merge remote-tracking branch #{branch} into #{@git.current_branch}" }
+          merged << branch
+        rescue => e
+          LOGGER.error(:Git) { "Could not merge Branch: '#{branch}'\n\t#{e.message.gsub!(/[\r\n]+/, "\n\t")}" }
+          @git.reset_hard(@git.current_branch)
+        end
+        puts merged
+      end
+    remotes = @git.remotes
+    master = @git.remote('cc/master')
+
+    @git.add_tag(new_version) unless new_version.nil?
+    @git.push(@config[:Remote], @git.current_branch)
+    return merged
   end
 
   private
@@ -121,7 +149,5 @@ class GitBuilder
 		msg = @commits.keys.keep_if { |k| @commits[k].is_a?(Array) }
 		LOGGER.info(:Git) { "Branches to merge: #{msg}" }
   end
-
-
 
 end
