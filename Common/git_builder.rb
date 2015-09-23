@@ -2,6 +2,7 @@ require 'git'
 require 'yaml'
 require 'logger'
 require 'rake'
+require_relative 'jira_worker'
 require_relative '../Rake/build'
 
 class GitBuilder
@@ -11,6 +12,7 @@ class GitBuilder
 	# @param [String] repo_config 'filename.yaml'
 	def initialize(repo_config)
 		initialize_config(repo_config)
+    @jira = JiraWorker.new
   end
 
   def start
