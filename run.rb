@@ -15,8 +15,20 @@ options = { :username => 'Christian.Chartron',
 
 client = JIRA::Client.new(options)
 
-issue = client.Issue.find('TEST-51')
-issue.save({"fields"=>{"summary"=> ''}})
+issue = client.Issue.find('TEST-52')
+#bla = issue.save({"field" => {"worklog" => {}}})
+
+begin
+
+  transition_review = issue.transitions.build
+  transition_review.save!("transition" => {"id" => '5'})
+
+  #comment = issue.comments.build
+  #comment.save!(:body => "Das ist ein ruby generierter Kommentar.")
+
+rescue => e
+  puts e
+end
 
 threads = []
 
