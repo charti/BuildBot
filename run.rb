@@ -2,21 +2,13 @@ require 'rubygems'
 require 'bundler/setup'
 require 'jira'
 require_relative 'Rake/build'
+require_relative 'Common/jira_worker'
 
-#Jira testticket: TEST-51
+jw = JiraWorker.new
 
-options = { :username => 'Christian.Chartron',
-            :password => '#Ch5377422',
-            :site => 'http://jira.dako.de',
-            :context_path => '',
-            :auth_type => :basic,
-            :use_ssl => false
-}
-
-client = JIRA::Client.new(options)
-
-issue = client.Issue.find('TEST-52')
-#bla = issue.save({"field" => {"worklog" => {}}})
+jw.client.Project.all.each do |proj|
+	puts proj
+end
 
 begin
 

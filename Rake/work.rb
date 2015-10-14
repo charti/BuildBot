@@ -10,5 +10,5 @@ MESSAGE_END
 
 Net::SMTP.start('localhost') do |smtp|
 	smtp.send_message message, 'chr.cha4rt@gmail.com',
-	                  'chr.chart@gmail.com'
+										'chr.chart@gmail.com'
 end
