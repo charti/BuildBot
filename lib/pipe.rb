@@ -8,8 +8,9 @@ require_relative '../lib/git'
 module Tools
   module Generate
     def self.rake_application
-			Rake.load_rakefile('../lib/rake/initial.rake')
-			Rake.application[:init].invoke
+      FileList.new('../lib/rake/*.rake').each do |file|
+        Rake.load_rakefile(file)
+      end
 			return Rake.application
     end
   end
@@ -20,7 +21,8 @@ module Tools
 
 		if File.exist?(src)
 			File.open(src, 'r') do |file|
-				edited = yield file
+				edited_line = yield file
+        edited << edited_line
 			end
 		else
 			raise "The File #{src} doesn't exist."
@@ -38,9 +40,9 @@ module Tools
 		# 	raise "The File #{src} doesn't exist."
 		# end
     #
-		# File.open(out, 'w') do |file|
-		# 	edited.each { |line| file.write(line) }
-		# end
+		File.open(out, 'w') do |file|
+			edited.each { |line| file.write(line) }
+		end
 
 	end
 end
@@ -75,19 +77,18 @@ module PipeMethods
 
   def start
     self.setup
-    rake = Tools::Generate.rake_application
-    setup_repo
+    @tasks = Tools::Generate.rake_application
+    @tasks[:init].invoke
 
+    setup_repo
   end
 
   def setup_repo
-    config = Hash.new
-    instance_variables.each do |klass_var|
-      var = klass_var.to_s.delete('@').to_sym
-      config.store(var, instance_variable_get(klass_var))
-    end
-
-    @git = GitWorker.new(config)
+    @git = GitWorker.new( { :repo => @repo,
+                            :uri => @uri,
+                            :target_branch => @target_branch,
+                            :base_branch => @base_branch,
+                            :branches_to_build => @branches_to_build } )
   end
 
 end
@@ -95,15 +96,15 @@ end
 class BasePipe
 	include PipeMethods
 
-  attr_accessor :repo, :uri,
-                :target_branch, :base_branch,
-                :branches_to_build
+  attr_accessor :repo,
+                :uri,
+                :target_branch,
+                :base_branch,
+                :branches_to_build,
+                :git,
+                :tasks
 
   def initialize
-    # @repo = 'repo'
-    # @target_branch = 'target_branch'
-    # @base_branch = 'base_branch'
-    # @branches_to_build = %w<branches to build>
     puts 'Pipe init'
     start
   end
