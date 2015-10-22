@@ -1,6 +1,5 @@
 require 'rake'
 require 'albacore'
-require_relative '../Common/git_builder'
 
 #
 # Albacore work flow controlling tasks

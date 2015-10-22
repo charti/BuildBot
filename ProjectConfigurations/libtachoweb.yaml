@@ -1,5 +1,0 @@
-Uri: "http://git.dako.de/libtachoweb.git"
-Type: :binary
-Branches: ['jo/pu', 'cc/pu']
-Name: "libtachoweb"
-RemoteBranch: "master"
