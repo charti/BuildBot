@@ -16,13 +16,13 @@ module Tools
   end
 
 
-	def self.edit_file(src, out = src)
+	def self.edit_file(src, out = src, &block)
 		edited = [ ]
 
-		if File.exist?(src)
+    if File.exist?(src)
 			File.open(src, 'r') do |file|
-				edited_line = yield file
-        edited << edited_line
+        block.call(file)
+        puts file
 			end
 		else
 			raise "The File #{src} doesn't exist."
@@ -49,31 +49,59 @@ end
 
 module VirtualPipeMethods
 
-	# def	setup_repo
-  #
-	# end
-
 	def build_commit
-
+    false
 	end
 
 	def test_commit
-
+    false
 	end
 
 	def increase_version
-
+    false
 	end
 
 	def publish_branch
-
+    false
 	end
+
+end
+
+module BuildMethods
+
+  def build_all_commits
+    git.all_commits_do do |branch, commit|
+      @versioning_required = branch != @current_branch
+      @current_branch = branch
+      @current_commit = commit
+      puts @current_branch, @current_commit
+      build_commit
+    end
+  end
+
+  def build_binary(csproj)
+    begin
+      @tasks[:execute].invoke(self, csproj, :binary, @current_branch,
+                              @current_commit, @versioning_required)
+    rescue => e
+      puts e
+    end
+  end
+
+  def build_web_application(csproj)
+    begin
+      @tasks[:execute].invoke(self, csproj, :web_application, @current_branch,
+                              @current_commit, @versioning_required)
+    rescue => e
+      puts e
+    end
+  end
 
 end
 
 
 module PipeMethods
-	include VirtualPipeMethods
+	include VirtualPipeMethods, BuildMethods
 
   def start
     self.setup
@@ -81,6 +109,7 @@ module PipeMethods
     @tasks[:init].invoke
 
     setup_repo
+    build_all_commits
   end
 
   def setup_repo
@@ -101,6 +130,7 @@ class BasePipe
                 :target_branch,
                 :base_branch,
                 :branches_to_build,
+                :build_type,
                 :git,
                 :tasks
 

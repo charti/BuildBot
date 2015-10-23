@@ -5,25 +5,27 @@ require 'albacore'
 # Albacore work flow controlling tasks
 #
 desc 'Iterates over any commit and invokes :start task.'
-task :execute_pipeline do |t|
+task :execute_pipeline, :pipe, :csproj do |t, args|
   puts t
+  @target_proj = args[:csproj]
+  @pipe = args[:pipe]
 
-  GB.all_commits_do do |branch, commit|
+  @pipe.all_commits_do do |branch, commit|
     @current_commit = commit
     @versioning_required = branch != @current_branch
     @current_branch = branch
     @merge = false
 
     br = @current_branch.gsub('/','_')
-    mkdir_p %W(#{GB.paths[:log][:r]}/build/#{br} #{GB.paths[:internal]}/#{br}) #{GB.paths[:external]}/#{br}
+    mkdir_p %W(#{@pipe.git.paths[:log][:r]}/build/#{br} #{@pipe.git.paths[:internal]}/#{br}) #{@pipe.git.paths[:external]}/#{br}
 
     puts "#{:all_commits_do} versioning_required:#{@versioning_required}"
 
     begin
-      Rake.application[:start].invoke
+      @pipe.tasks[:start].invoke
       LOGGER.info(@current_branch) { "Commit #{@current_commit} check was successful." }
     rescue => e
-      unless e.nil?
+      unless e.nil? || e.message.nil?
         LOGGER.error(@current_branch) { "Commit #{@current_commit} check failed:" +
                                     "#{e.message.gsub!(/[^\S\r\n]{2,}/, '').gsub!(/[\r\n]+/, "\n\t")}" }
       else
@@ -40,7 +42,7 @@ task :execute_pipeline do |t|
 
   end
 
-  GB.merge_branches(@new_version)
+  @pipe.git.merge_branches(@new_version)
 end
 
 desc 'building => testing => deploying'
@@ -52,12 +54,12 @@ end
 desc 'versioning => compiling'
 task :build => [:versioning, :copy_configs] do |t|
   puts t
-	Rake.application[GB.config[:Type]].execute
+	@pipe.tasks[@pipe.build_type].execute
 	LOGGER.info(:Build) { 'Build was successful.' }
 end
 
 task :copy_configs do |t|
-  config_examples = FileList.new("#{GB.paths[:source]}/**/*.config.example")
+  config_examples = FileList.new("#{@pipe.git.paths[:source]}/**/*.config.example")
   next if config_examples.empty?
 
   puts t
@@ -76,7 +78,7 @@ end
 test_runner :nunit do |tr|
 	br = @current_branch.gsub('/','_')
 
-	tr.files = FileList["WorkingDir/internal/#{GB.config[:Name]}/#{br}/#{@current_commit}/*test*.dll"]
+	tr.files = FileList["WorkingDir/internal/#{@pipe.git.config[:Name]}/#{br}/#{@current_commit}/*test*.dll"]
 	tr.exe = 'Tools/nunit/bin/nunit-console.exe'
 end
 
@@ -85,7 +87,7 @@ task :versioning do |t|
   next
 	next unless @versioning_required
 	puts t
-	assemblies = FileList.new("#{GB.paths[:source]}/**/AssemblyInfo.cs").each do |path|
+	assemblies = FileList.new("#{@pipe.git.paths[:source]}/**/AssemblyInfo.cs").each do |path|
 		new_assembly = ""
 
 		File.read(path).each_line do |line|
@@ -97,7 +99,7 @@ task :versioning do |t|
 				version = /(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)[-\.](?<revision>[a-zA-Z\-\d+]+)/.match(line)
 
 				version.names.each do |group|
-					unless group.to_sym.eql?(GB.config[version_type[1].to_sym])
+					unless group.to_sym.eql?(@pipe.git.config[version_type[1].to_sym])
 						@new_version << "#{version[group]}"
 					else
 						@new_version << "#{version[group].to_i + 1}"
@@ -130,22 +132,22 @@ end
 build :binary do |msb|
 	br = @current_branch.gsub('/','_')
 
-	msb.sln  = Dir.glob("#{GB.paths[:source]}/*.sln").first
+	msb.sln  = Dir.glob("#{@pipe.git.paths[:source]}/*.sln").first
 	msb.target = [:Clean, :Build]
 
   msb.prop :DebugType, 'pdbonly'
   msb.prop :ExcludeGeneratedDebugSymbol, false
-	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{br}/",
+	msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/#{br}/",
 	                                            "#{@current_commit}.log")};Verbosity=detailed;"
 	msb.cores = 2
-	msb.prop :Outdir, "#{GB.paths[:internal]}/#{br}/#{@current_commit}/"
+	msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}/"
 	msb.nologo
 end
 
 build :web_application do |msb|
 	br = @current_branch.gsub('/','_')
 
-	msb.sln = Dir.glob("#{GB.paths[:source]}/*.sln").first
+	msb.sln = Dir.glob("#{@pipe.git.paths[:source]}/*.sln").first
 	msb.prop 'WarningLevel', 2
 	msb.cores = 2
 	msb.target = [:Build]
@@ -165,9 +167,9 @@ build :web_application do |msb|
 	msb.prop :SingleAssemblyName, 'MergedHttpHandler'
 	msb.prop :UseWPP_CopyWebApplication, true
 	msb.prop :PipelineDependsOnBuild, false
-  msb.prop :Webprojectoutputdir, "#{GB.paths[:IIS]}"
-	msb.prop :Outdir, "#{GB.paths[:internal]}/#{br}/#{@current_commit}"
-	msb.add_parameter "/flp:LogFile=#{File.join("#{GB.paths[:log][:r]}/build/#{br}/",
+  msb.prop :Webprojectoutputdir, "#{@pipe.git.paths[:IIS]}"
+	msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}"
+	msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/#{br}/",
                                               "#{@current_commit}.log")};Verbosity=detailed;"
 end
 

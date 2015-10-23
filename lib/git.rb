@@ -32,12 +32,6 @@ class GitWorker
     raise "targeted Logger #{target} already exists!"
   end
 
-  def checkout_commit(commit)
-    sha = commit.is_a?(Git::Object::Commit) ? commit.sha : commit
-    @git.checkout(sha)
-    LOGGER.debug("Detached Head while checkout commit: #{sha}") if detached?
-  end
-
   def commit_merge_ff(commit)
     @git.merge(commit)
   end
