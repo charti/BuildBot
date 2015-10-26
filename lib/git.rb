@@ -51,6 +51,7 @@ class GitWorker
 
       # rebase --hard to +ReleaseBranch+ Commit
       @git.reset_hard(@commits[:master].sha)
+      @git.reset_hard(@commits[:master].sha)
     end unless @commits.nil?
   end
 

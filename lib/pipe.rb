@@ -42,9 +42,9 @@ module VirtualPipeMethods
     false
   end
 
-	def test_commit
+  def before_test
     false
-	end
+  end
 
 	def increase_version version
     false
@@ -68,18 +68,18 @@ module BuildMethods
     end
   end
 
-  def build_binary(csproj)
+  def build_binary(csproj, test_csproj='')
     begin
-      @tasks[:execute].invoke(self, csproj, :binary, @current_branch,
+      @tasks[:execute].invoke(self, csproj, test_csproj, :binary, @current_branch,
                               @current_commit, @versioning_required)
     rescue => e
       puts e
     end
   end
 
-  def build_web_application(csproj)
+  def build_web_application(csproj, test_csproj='')
     begin
-      @tasks[:execute].invoke(self, csproj, :web_application, @current_branch,
+      @tasks[:execute].invoke(self, csproj, test_csproj, :web_application, @current_branch,
                               @current_commit, @versioning_required)
     rescue => e
       puts e
