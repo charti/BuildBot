@@ -87,7 +87,7 @@ end
 build :binary do |msb|
   br = @current_branch.gsub('/', '_')
 
-  msb.file = Dir.glob("#{@pipe.git.paths[:source]}/#{@csproj}").first
+  msb.file = Dir.glob("#{@pipe.git.paths[:source]}/*/#{@csproj}").first
   msb.target = [:Build]
   msb.prop :Configuration, 'Release'
   msb.prop :DebugType, 'pdbonly'
@@ -104,7 +104,7 @@ end
 build :web_application do |msb|
   br = @current_branch.gsub('/', '_')
 
-  msb.sln = Dir.glob("#{@pipe.git.paths[:source]}/#{@csproj}").first
+  msb.file = Dir.glob("#{@pipe.git.paths[:source]}/*/#{@csproj}").first
   msb.prop 'WarningLevel', 2
   msb.cores  = 2
   msb.target = [:Build]
