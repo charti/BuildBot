@@ -22,7 +22,7 @@ class GitWorker
   def create_logger(target)
     unless @paths[:log].nil?
       @paths.store(:log, Hash.new)
-      @paths[:log].store(:r, File.expand_path("WorkingDir/log/#{@config['Name']}/"))
+      @paths[:log].store(:r, File.expand_path("../WorkingDir/log/#{@config[:repo]}/"))
       FileUtils.mkpath @paths[:log][:r]
     end
     unless @paths[:log].key?(target)
@@ -61,7 +61,7 @@ class GitWorker
 		@paths.store(:git, File.dirname('../WorkingDir/repos/' +
 		                                "#{@config[:repo]}/.git/*"))
 		unless File.directory?(@paths[:git])
-			Git.clone(@config[:uri], @config[:repo], { :path   => "../WorkingDir/repos",
+      Git.clone(@config[:uri], @config[:repo], { :path   => "../WorkingDir/repos",
                                                  :branch => @config[:base_branch] })
 		end
 

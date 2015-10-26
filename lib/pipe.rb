@@ -19,45 +19,34 @@ module Tools
 	def self.edit_file(src, out = src, &block)
 		edited = [ ]
 
-    if File.exist?(src)
-			File.open(src, 'r') do |file|
-        block.call(file)
-        puts file
+		if File.exist?(src)
+			File.open(src, 'r').readlines.each do |line|
+				edit = yield line
+				edited << edit
 			end
 		else
 			raise "The File #{src} doesn't exist."
 		end
 
-		# File.open(out, 'w') do |file|
-		# 	edited.each { |line| file.write(line) }
-		# end
-		# if File.exist?(src)
-		# 	File.open(src, 'r').readlines.each do |line|
-		# 		edit = yield line
-		# 		edited << edit
-		# 	end
-		# else
-		# 	raise "The File #{src} doesn't exist."
-		# end
-    #
 		File.open(out, 'w') do |file|
-			edited.each { |line| file.write(line) }
+			edited.each { |line| file.puts(line) }
 		end
 
+    puts ''
 	end
 end
 
 module VirtualPipeMethods
 
-	def build_commit
+  def before_build
     false
-	end
+  end
 
 	def test_commit
     false
 	end
 
-	def increase_version
+	def increase_version version
     false
 	end
 
@@ -74,7 +63,7 @@ module BuildMethods
       @versioning_required = branch != @current_branch
       @current_branch = branch
       @current_commit = commit
-      puts @current_branch, @current_commit
+      puts "#{@current_branch} #{@current_commit}"
       build_commit
     end
   end
@@ -132,7 +121,8 @@ class BasePipe
                 :branches_to_build,
                 :build_type,
                 :git,
-                :tasks
+                :tasks,
+                :versioning_required
 
   def initialize
     puts 'Pipe init'
