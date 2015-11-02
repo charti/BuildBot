@@ -2,6 +2,7 @@ require 'git'
 require 'date'
 require 'logger'
 require 'rake'
+require 'benchmark'
 #require_relative '../Rake/build'
 
 class GitWorker
@@ -37,22 +38,57 @@ class GitWorker
   end
 
   def all_commits_do
+		@skip = []
     @commits.each_pair do |branch, commits|
       next unless commits.is_a?(Array)
 
-      LOGGER.info(:Git) { "Check Branch '#{branch}' #{commits.last}..#{commits.first}" }
+			elapsed = Benchmark.realtime do
+				LOGGER.info(:Git) { "Check Branch '#{branch}' #{commits.last}..#{commits.first}" }
 
-      commits.reverse_each do |commit|
-        LOGGER.info(:Git) {"Check #{commit}"}
-        @git.merge(commit)
+				commits.reverse_each do |commit|
+					next if @skip.include?(branch)
+					LOGGER.info(:Git) {"Check #{commit}"}
+					@git.merge(commit)
 
-        yield branch, commit
-      end
+					yield branch, commit
+				end
 
-      # rebase --hard to +ReleaseBranch+ Commit
-      @git.reset_hard(@commits[:master].sha)
-      @git.reset_hard(@commits[:master].sha)
+				# rebase --hard to +ReleaseBranch+ Commit
+				@git.reset_hard(@commits[:master].sha)
+			end
+
+			LOGGER.info(:Git) { "Branch '#{branch}' checked in: #{elapsed} seconds." }
     end unless @commits.nil?
+  end
+
+	def merge_branches(new_version=nil)
+		merge_branches = @config[:branches_to_build] - @skip
+		merged = []
+
+		elapsed = Benchmark.realtime do
+			merge_branches.each do |branch|
+				begin
+					@git.merge("origin/#{branch}", "Merge remote-tracking branch #{branch} into #{@git.current_branch}")
+					LOGGER.debug(:Git) { "Merge remote-tracking branch #{branch} into #{@git.current_branch}" }
+					merged << branch
+				rescue => e
+					LOGGER.error(:Git) { "Could not merge Branch: '#{branch}'\n\t#{e.message.gsub!(/[\r\n]+/, "\n\t")}" }
+					@git.reset_hard(@git.current_branch)
+				end
+			end
+
+			unless merged.empty?
+				@git.add_tag(new_version) unless new_version.nil?
+
+			end
+		end
+
+		LOGGER.info(:Git) {"Merged #{merged.count} Branches in #{elapsed} seconds."}
+		puts merge_branches
+	end
+
+  def skip_branch(branch)
+    @skip << branch
   end
 
   private

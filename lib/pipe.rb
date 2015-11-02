@@ -60,13 +60,22 @@ module BuildMethods
 
   def build_all_commits
     git.all_commits_do do |branch, commit|
-      @versioning_required = branch != @current_branch
-      @current_branch = branch
-      @current_commit = commit
-      puts "#{@current_branch} #{@current_commit}"
-      build_commit
+			@versioning_required = branch != @current_branch
+			@current_branch = branch
+			@current_commit = commit
+			puts "#{@current_branch} #{@current_commit}"
+			begin
+				build_commit
+			rescue => e
+				LOGGER.error(:Build) { e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t") }
+				@git.skip_branch(branch)
+			end
     end
-  end
+	end
+
+	def merge_branches
+		git.merge_branches
+	end
 
   def build_binary(csproj, test_csproj='')
     begin
@@ -74,6 +83,7 @@ module BuildMethods
                               @current_commit, @versioning_required)
     rescue => e
       puts e
+			raise e
     end
   end
 
@@ -99,6 +109,7 @@ module PipeMethods
 
     setup_repo
     build_all_commits
+		merge_branches
   end
 
   def setup_repo

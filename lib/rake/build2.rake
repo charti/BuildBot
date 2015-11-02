@@ -15,9 +15,9 @@ task :execute, [:pipe, :csproj, :unit_test,
     @pipe.tasks[:start].all_prerequisite_tasks.each { |prereq| prereq.reenable }
     @pipe.tasks[:start].reenable
     @pipe.tasks[@build_type].reenable
-    @pipe.tasks[:unit_test].reenable
-    @pipe.tasks[:test_project].reenable
     t.reenable
+
+		#raise $!
   end
   puts t
 end
@@ -84,26 +84,16 @@ task :copy_configs do
   end
 end
 
-task :unit_test do |t|
-  puts t.name
-  br = @current_branch.gsub('/','_')
-  unless Dir.exist?("#{@pipe.git.paths[:log][:r]}/build/#{br}")
-    mkdir_p %W(#{@pipe.git.paths[:log][:r]}/build/#{br} #{@pipe.git.paths[:internal]}/#{br}) #{@pipe.git.paths[:external]}/#{br}
-  end
-  @pipe.before_test
-
-  begin
-    @pipe.tasks[:test_project].invoke
-  rescue => e
-    puts e.message
-  end
-end
+task :unit_test => [:test_project, :nunit]
 
 test_runner :nunit do |tr|
   br = @current_branch.gsub('/', '_')
+	test_file = "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}/#{@unit_test.gsub(/csproj/, '*')}"
 
-  tr.files = FileList["WorkingDir/internal/#{GB.config[:Name]}/#{br}/#{@current_commit}/*test*.dll"]
-  tr.exe   = 'Tools/nunit/bin/nunit-console.exe'
+  tr.files = FileList[test_file].exclude {|f| File.absolute_path(f) unless /exe|dll/.match(f)}
+  tr.exe   = File.absolute_path '../Tools/nunit/bin/nunit-console.exe'
+	tr.add_parameter "/result=#{@pipe.git.paths[:log][:r]}/build/#{br}/#{@current_commit}-test_result.xml"
+	tr.add_parameter "/nologo"
 end
 
 build :binary do |msb|

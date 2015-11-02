@@ -6,7 +6,7 @@ class Pipe < BasePipe
     @uri = 'https://github.com/charti/InVers.git'
     @target_branch = 'master'
     @base_branch = 'master'
-    @branches_to_build = %w<cc/pu cc/test cc/broken>
+    @branches_to_build = %w<cc/merge1 cc/merge2> #cc/pu cc/test cc/broken
   end
 
   # +version+ contains the old version
@@ -24,7 +24,7 @@ class Pipe < BasePipe
 
   def build_commit
     build_binary('InVers.csproj', 'invers-test.csproj')
-    build_web_application('InVers.csproj', '')
+    #build_web_application('InVers.csproj', '')
   end
 
 end
