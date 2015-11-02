@@ -10,13 +10,13 @@ task :execute, [:pipe, :csproj, :unit_test,
   @new_version = ''
   begin
     @pipe.tasks[:start].invoke
+    LOGGER.info(:Build) { "Build for Branch:#{@current_branch}, Commit:#{@current_commit.sha} was succesful." }
+    @pipe.new_version = @new_version unless @new_version.empty?
   ensure
-    #@new_version = ''
     @pipe.tasks[:start].all_prerequisite_tasks.each { |prereq| prereq.reenable }
     @pipe.tasks[:start].reenable
     @pipe.tasks[@build_type].reenable
     t.reenable
-
 		#raise $!
   end
   puts t

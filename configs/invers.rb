@@ -3,7 +3,7 @@ require_relative '../lib/pipe'
 class Pipe < BasePipe
   def setup
     @repo = 'invers'
-    @uri = 'https://github.com/charti/InVers.git'
+    @uri = 'https://charti:+Ch5377422@github.com/charti/InVers.git'
     @target_branch = 'master'
     @base_branch = 'master'
     @branches_to_build = %w<cc/merge1 cc/merge2> #cc/pu cc/test cc/broken

@@ -53,7 +53,6 @@ class GitWorker
 					yield branch, commit
 				end
 
-				# rebase --hard to +ReleaseBranch+ Commit
 				@git.reset_hard(@commits[:master].sha)
 			end
 
@@ -70,22 +69,28 @@ class GitWorker
 				begin
 					@git.merge("origin/#{branch}", "Merge remote-tracking branch #{branch} into #{@git.current_branch}")
 					LOGGER.debug(:Git) { "Merge remote-tracking branch #{branch} into #{@git.current_branch}" }
-					merged << branch
+					yield branch, @git.gcommit(@git.object(@config[:base_branch])), true
+          @git.push('origin', @config[:target_branch])
+          merged << branch
+          LOGGER.debug(:Git) { "Integrated Branch: #{branch} succesfully into " +
+              "origin/#{@config[:target_branch]}" }
 				rescue => e
 					LOGGER.error(:Git) { "Could not merge Branch: '#{branch}'\n\t#{e.message.gsub!(/[\r\n]+/, "\n\t")}" }
-					@git.reset_hard(@git.current_branch)
+					#@git.reset_hard(@git.current_branch)
+          yield branch, nil, false
 				end
-			end
-
-			unless merged.empty?
-				@git.add_tag(new_version) unless new_version.nil?
-
-			end
-		end
+      end
+			@git.add_tag(new_version) unless new_version.nil?
+    end
 
 		LOGGER.info(:Git) {"Merged #{merged.count} Branches in #{elapsed} seconds."}
 		puts merge_branches
-	end
+  end
+
+  def reset_to(branch)
+    @git.reset_hard('origin/' + branch)
+    LOGGER.info(:Git) { "reseted to #{'origin/' + branch}" }
+  end
 
   def skip_branch(branch)
     @skip << branch
@@ -148,11 +153,6 @@ class GitWorker
 							:external => File.expand_path(@config[:repo], '../WorkingDir/external/'),
 							:source => File.expand_path(@config[:repo], '../WorkingDir/repos/'),
 							:IIS => File.expand_path('WorkingDir/IIS') }
-
-
-		# paths.each_pair do |k, v|
-		# 	@paths.store(k, v)
-		# end
 	end
 
 end

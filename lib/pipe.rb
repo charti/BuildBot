@@ -31,8 +31,6 @@ module Tools
 		File.open(out, 'w') do |file|
 			edited.each { |line| file.puts(line) }
 		end
-
-    puts ''
 	end
 end
 
@@ -74,7 +72,22 @@ module BuildMethods
 	end
 
 	def merge_branches
-		git.merge_branches
+    reset_branch = @base_branch
+    git.merge_branches do |branch, commit, merged|
+      next unless merged
+
+      @versioning_required = true
+      @current_branch = branch
+      @current_commit = commit
+      begin
+        build_commit
+        git.push(@target_branch)
+        reset_branch = @target_branch
+      rescue => e
+        LOGGER.error(:Build) { "merge failed #{e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t")}" }
+        @git.reset_to reset_branch
+      end
+    end
 	end
 
   def build_binary(csproj, test_csproj='')
@@ -108,7 +121,9 @@ module PipeMethods
     @tasks[:init].invoke
 
     setup_repo
+
     build_all_commits
+
 		merge_branches
   end
 
