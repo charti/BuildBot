@@ -73,15 +73,14 @@ module BuildMethods
 
 	def merge_branches
     reset_branch = @base_branch
-    git.merge_branches do |branch, commit, merged|
+    @versioning_required = true
+    git.merge_branches(@new_version) do |branch, commit, merged|
       next unless merged
 
-      @versioning_required = true
       @current_branch = branch
       @current_commit = commit
       begin
         build_commit
-        git.push(@target_branch)
         reset_branch = @target_branch
       rescue => e
         LOGGER.error(:Build) { "merge failed #{e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t")}" }
@@ -148,10 +147,12 @@ class BasePipe
                 :build_type,
                 :git,
                 :tasks,
-                :versioning_required
+                :versioning_required,
+                :new_version
 
   def initialize
     puts 'Pipe init'
+    @new_version = nil
     start
   end
 

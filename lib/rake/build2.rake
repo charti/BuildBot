@@ -7,7 +7,7 @@ task :execute, [:pipe, :csproj, :unit_test,
                 :build_type, :current_branch,
                 :current_commit] do |t, args|
   args.each {|name, value| instance_variable_set("@#{name}", value)}
-  @new_version = ''
+  @new_version = @pipe.new_version.nil? ? '' : @pipe.new_version
   begin
     @pipe.tasks[:start].invoke
     LOGGER.info(:Build) { "Build for Branch:#{@current_branch}, Commit:#{@current_commit.sha} was succesful." }
@@ -17,7 +17,6 @@ task :execute, [:pipe, :csproj, :unit_test,
     @pipe.tasks[:start].reenable
     @pipe.tasks[@build_type].reenable
     t.reenable
-		#raise $!
   end
   puts t
 end
@@ -39,7 +38,6 @@ task :build => [:versioning, :copy_configs] do|t|
   @pipe.tasks[@build_type].invoke
 end
 
-#TODO versioning
 task :versioning do |t|
   puts "#{t} #{@pipe.versioning_required.to_s}"
   if @pipe.versioning_required

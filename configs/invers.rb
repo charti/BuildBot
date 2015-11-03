@@ -6,7 +6,7 @@ class Pipe < BasePipe
     @uri = 'https://charti:+Ch5377422@github.com/charti/InVers.git'
     @target_branch = 'master'
     @base_branch = 'master'
-    @branches_to_build = %w<cc/merge1 cc/merge2> #cc/pu cc/test cc/broken
+    @branches_to_build = %w<cc/pu cc/test cc/broken cc/merge1 cc/merge2> #
   end
 
   # +version+ contains the old version

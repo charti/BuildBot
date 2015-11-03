@@ -3,7 +3,6 @@ require 'date'
 require 'logger'
 require 'rake'
 require 'benchmark'
-#require_relative '../Rake/build'
 
 class GitWorker
 
@@ -80,6 +79,8 @@ class GitWorker
           yield branch, nil, false
 				end
       end
+      @git.commit_all("new Version: #{new_version}")
+      @git.push('origin', @config[:target_branch])
 			@git.add_tag(new_version) unless new_version.nil?
     end
 
