@@ -21,17 +21,23 @@ task :execute, [:pipe, :csproj, :unit_test,
   puts t
 end
 
-#TODO :nunit richtig setzen
-#TODO restliche abh�ngigkeiten
-task :start => [:build, :unit_test] do |t|
+task :start => [:clean, :build, :unit_test, :inspections] do |t|
   puts t
+end
+
+task :clean do |t|
+	#mv "#{@pipe.git.paths[:internal]}/*CodeAnalysisLog.xml", "@git.paths[:log][:r]/#{}"
+  FileUtils.rm_rf(Dir.glob("#{@pipe.git.paths[:internal]}/*"))
+  FileUtils.rm_rf(Dir.glob("#{@pipe.git.paths[:IIS]}/*"))
 end
 
 task :build => [:versioning, :copy_configs] do|t|
   puts t.name
   br = @current_branch.gsub('/','_')
-  unless Dir.exist?("#{@pipe.git.paths[:log][:r]}/build/#{br}")
-    mkdir_p %W(#{@pipe.git.paths[:log][:r]}/build/#{br} #{@pipe.git.paths[:internal]}/#{br}) #{@pipe.git.paths[:external]}/#{br}
+  unless Dir.exist?("#{@pipe.git.paths[:log][:r]}/build/")
+    mkdir_p %W(#{@pipe.git.paths[:log][:r]}/build/ #{@pipe.git.paths[:internal]}/
+								#{@pipe.git.paths[:log][:r]}/inspections/) #{@pipe.git
+		# .paths[:external]}/#{br}
   end
   @pipe.before_build
 
@@ -86,11 +92,11 @@ task :unit_test => [:test_project, :nunit]
 
 test_runner :nunit do |tr|
   br = @current_branch.gsub('/', '_')
-	test_file = "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}/#{@unit_test.gsub(/csproj/, '*')}"
+	test_file = "#{@pipe.git.paths[:internal]}/#{@unit_test.gsub(/csproj/, '*')}"
 
   tr.files = FileList[test_file].exclude {|f| File.absolute_path(f) unless /exe|dll/.match(f)}
   tr.exe   = File.absolute_path '../Tools/nunit/bin/nunit-console.exe'
-	tr.add_parameter "/result=#{@pipe.git.paths[:log][:r]}/build/#{br}/#{@current_commit}-test_result.xml"
+	tr.add_parameter "/result=#{@pipe.git.paths[:log][:r]}/build/#{@current_commit}-test_result.xml"
 	tr.add_parameter "/nologo"
 end
 
@@ -104,10 +110,11 @@ build :binary do |msb|
 
   msb.prop :DebugType, 'pdbonly'
   msb.prop :ExcludeGeneratedDebugSymbol, false
-  msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/#{br}/",
+  msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@csproj}.log")};Verbosity=detailed;"
+	#msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset"
   msb.cores = 2
-  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}/"
+  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/"
   msb.nologo
 end
 
@@ -135,9 +142,10 @@ build :web_application do |msb|
   msb.prop :UseWPP_CopyWebApplication, true
   msb.prop :PipelineDependsOnBuild, false
   msb.prop :Webprojectoutputdir, "#{@pipe.git.paths[:IIS]}"
-  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}"
-  msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/#{br}/",
+  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/"
+  msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@csproj}.log")};Verbosity=detailed;"
+  #msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset"
 end
 
 build :test_project do |msb|
@@ -150,9 +158,26 @@ build :test_project do |msb|
 
   msb.prop :DebugType, 'pdbonly'
   msb.prop :ExcludeGeneratedDebugSymbol, false
-  msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/#{br}/",
+  msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@unit_test}.log")};Verbosity=detailed;"
   msb.cores = 2
-  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/#{br}/#{@current_commit}/"
+  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/"
   msb.nologo
+end
+
+task :inspections do |t|
+  begin
+		case_insansitive = File::FNM_CASEFOLD
+		files = Dir.glob("#{@pipe.git.paths[:internal]}/" +
+												 "#{@csproj.gsub('.csproj', '')}.{exe, dll}", case_insansitive)
+
+		files.each do |file|
+			basename = File.basename(file)
+      system *%W(
+      ../Tools/FxCop/metrics.exe /f:#{file}
+			/o:#{@pipe.git.paths[:log][:r]}/inspections/#{@current_commit}-#{basename}.xml )
+		end
+	rescue => e
+		LOGGER.error(:Build) { "Inspections failed: #{e.message}" }
+  end
 end
