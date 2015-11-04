@@ -42,6 +42,8 @@ task :build => [:versioning, :copy_configs] do|t|
   @pipe.before_build
 
   @pipe.tasks[@build_type].invoke
+
+	puts :test
 end
 
 task :versioning do |t|
@@ -78,7 +80,7 @@ end
 #TODO copy_configs
 task :copy_configs do
   puts :copy_configs
-  config_examples = FileList.new("#{@pipe.git.paths[:source]}/*.config.example")
+  config_examples = FileList.new("#{@pipe.git.paths[:source]}/*/*.example")
   next if config_examples.empty?
 
   config_examples.each do |example|
@@ -92,7 +94,8 @@ task :unit_test => [:test_project, :nunit]
 
 test_runner :nunit do |tr|
   br = @current_branch.gsub('/', '_')
-	test_file = "#{@pipe.git.paths[:internal]}/#{@unit_test.gsub(/csproj/, '*')}"
+  dir = @build_type.eql?(:binary) ? "#{@pipe.git.paths[:internal]}" : "#{@pipe.git.paths[:IIS]}"
+	test_file = "#{dir}/#{@unit_test.gsub(/csproj/, '*')}"
 
   tr.files = FileList[test_file].exclude {|f| File.absolute_path(f) unless /exe|dll/.match(f)}
   tr.exe   = File.absolute_path '../Tools/nunit/bin/nunit-console.exe'
@@ -126,23 +129,26 @@ build :web_application do |msb|
   msb.cores  = 2
   msb.target = [:Build]
 
+	if @pipe.publish
+    msb.prop :PrecompileBeforePublish, true
+    msb.prop :WebPublishMethod, 'FileSystem'
+    msb.prop :UseMerge, true
+    msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
+    msb.prop :SingleAssemblyName, 'MergedHttpHandler'
+    msb.prop :UseWPP_CopyWebApplication, true
+    msb.prop :Webprojectoutputdir, "#{@pipe.git.paths[:external]}"
+	end
+
   msb.prop :Configuration, 'Release'
   msb.prop :DebugType, 'pdbonly'
-  msb.prop :PrecompileBeforePublish, true
   msb.prop :EnableUpdateable, false
   msb.prop :AutoParameterizationWebConfigConnectionStrings, false
   msb.prop :ExcludeGeneratedDebugSymbol, false
-  msb.prop :WebPublishMethod, 'FileSystem'
   msb.prop :DeleteExistingFiles, true
   msb.prop :DebugSymbols, true
   msb.prop :DeleteAppCodeCompiledFiles, true
-  msb.prop :UseMerge, @merge
-  msb.prop :WDPMergeOption, 'MergeAllOutputsToASingleAssembly'
-  msb.prop :SingleAssemblyName, 'MergedHttpHandler'
-  msb.prop :UseWPP_CopyWebApplication, true
   msb.prop :PipelineDependsOnBuild, false
-  msb.prop :Webprojectoutputdir, "#{@pipe.git.paths[:IIS]}"
-  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/"
+  msb.prop :Outdir, "#{@pipe.git.paths[:IIS]}/"
   msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@csproj}.log")};Verbosity=detailed;"
   #msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset"
@@ -161,23 +167,23 @@ build :test_project do |msb|
   msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@unit_test}.log")};Verbosity=detailed;"
   msb.cores = 2
-  msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/"
+  msb.prop :Outdir, @build_type.eql?(:binary) ? "#{@pipe.git.paths[:internal]}/" : "#{@pipe.git.paths[:IIS]}/"
   msb.nologo
 end
 
 task :inspections do |t|
-  begin
+	begin
+		dir = @build_type.eql?(:binary) ? "#{@pipe.git.paths[:internal]}" : "#{@pipe.git.paths[:IIS]}"
 		case_insansitive = File::FNM_CASEFOLD
-		files = Dir.glob("#{@pipe.git.paths[:internal]}/" +
-												 "#{@csproj.gsub('.csproj', '')}.{exe, dll}", case_insansitive)
+		files = Dir.glob("#{dir}/#{@csproj.gsub('.csproj', '')}.{exe,dll}", case_insansitive)
 
 		files.each do |file|
 			basename = File.basename(file)
-      system *%W(
+			system *%W(
       ../Tools/FxCop/metrics.exe /f:#{file}
 			/o:#{@pipe.git.paths[:log][:r]}/inspections/#{@current_commit}-#{basename}.xml )
 		end
 	rescue => e
 		LOGGER.error(:Build) { "Inspections failed: #{e.message}" }
-  end
+	end
 end

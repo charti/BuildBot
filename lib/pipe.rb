@@ -74,19 +74,20 @@ module BuildMethods
 	def merge_branches
     reset_branch = @base_branch
     @versioning_required = true
-    git.merge_branches(@new_version) do |branch, commit, merged|
-      next unless merged
-
-      @current_branch = branch
-      @current_commit = commit
-      begin
-        build_commit
-        reset_branch = @target_branch
-      rescue => e
-        LOGGER.error(:Build) { "merge failed #{e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t")}" }
-        @git.reset_to reset_branch
-      end
-    end
+    git.merge_branches(@new_version)
+    # git.merge_branches(@new_version) do |branch, commit, merged|
+    #   next unless merged
+		#
+    #   @current_branch = branch
+    #   @current_commit = commit
+    #   begin
+    #     build_commit
+    #     reset_branch = @target_branch
+    #   rescue => e
+    #     LOGGER.error(:Build) { "merge failed #{e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t")}" }
+    #     @git.reset_to reset_branch
+    #   end
+    # end
 	end
 
   def build_binary(csproj, test_csproj='')
@@ -105,6 +106,7 @@ module BuildMethods
                               @current_commit, @versioning_required)
     rescue => e
       puts e
+      raise e
     end
   end
 
@@ -148,11 +150,13 @@ class BasePipe
                 :git,
                 :tasks,
                 :versioning_required,
-                :new_version
+                :new_version,
+                :publish
 
   def initialize
     puts 'Pipe init'
     @new_version = nil
+    @publish = false
     start
   end
 

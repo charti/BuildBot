@@ -11,7 +11,7 @@ class GitWorker
 	# @param [String] repo_config 'filename.yaml'
 	def initialize(repo_config)
 		initialize_config(repo_config)
-    LOGGER.info(:Git) {"Start Build Process with configuration: '#{@paths[:config]}'"}
+    LOGGER.info(:Git) {"Start Build Process with configuration: '#{@paths[:repo]}'"}
     load_git
     load_branch_story
   end
@@ -26,7 +26,8 @@ class GitWorker
       FileUtils.mkpath @paths[:log][:r]
     end
     unless @paths[:log].key?(target)
-      @paths[:log].store(target, "#{@paths[:log][:r]}/#{target}-#{Time.new.strftime("%Y-%m-%d_%H%M%S")}.log")
+      @paths[:log].store(target,
+												 "#{@paths[:log][:r]}/#{target}-#{Time.new.strftime("%Y-%m-%d_%H%M%S")}.log")
       return Logger.new(@paths[:log][target])
     end
     raise "targeted Logger #{target} already exists!"
@@ -40,6 +41,7 @@ class GitWorker
 		@skip = []
     @commits.each_pair do |branch, commits|
       next unless commits.is_a?(Array)
+      next if @skip.include? branch
 
 			elapsed = Benchmark.realtime do
 				LOGGER.info(:Git) { "Check Branch '#{branch}' #{commits.last}..#{commits.first}" }
@@ -48,10 +50,8 @@ class GitWorker
 					next if @skip.include?(branch)
 					LOGGER.info(:Git) {"Check #{commit}"}
 					@git.merge(commit)
-
-					yield branch, commit
+          yield branch, commit
 				end
-
 				@git.reset_hard(@commits[:master].sha)
 			end
 
@@ -66,22 +66,29 @@ class GitWorker
 		elapsed = Benchmark.realtime do
 			merge_branches.each do |branch|
 				begin
-					@git.merge("origin/#{branch}", "Merge remote-tracking branch #{branch} into #{@git.current_branch}")
+					@git.merge("origin/#{branch}",
+										 "Merge remote-tracking branch #{branch} into #{@git.current_branch}")
 					LOGGER.debug(:Git) { "Merge remote-tracking branch #{branch} into #{@git.current_branch}" }
-					yield branch, @git.gcommit(@git.object(@config[:base_branch])), true
+
+					yield branch, @git.gcommit(@git.object(@config[:base_branch])), true if block_given?
+
           @git.push('origin', @config[:target_branch])
           merged << branch
           LOGGER.debug(:Git) { "Integrated Branch: #{branch} succesfully into " +
               "origin/#{@config[:target_branch]}" }
 				rescue => e
-					LOGGER.error(:Git) { "Could not merge Branch: '#{branch}'\n\t#{e.message.gsub!(/[\r\n]+/, "\n\t")}" }
+					LOGGER.error(:Git) { "Could not merge Branch: '#{branch}'\n\t#{e.message.gsub!(/[\r\n]+/,"\n\t")}" }
 					#@git.reset_hard(@git.current_branch)
           yield branch, nil, false
 				end
       end
-      @git.commit_all("new Version: #{new_version}")
-      @git.push('origin', @config[:target_branch])
-			@git.add_tag(new_version) unless new_version.nil?
+      changed = @git.status.changed
+
+      unless changed.empty?
+        @git.commit_all("new Version: #{new_version}")
+        @git.push('origin', @config[:target_branch])
+        @git.add_tag(new_version) unless new_version.nil?
+      end
     end
 
 		LOGGER.info(:Git) {"Merged #{merged.count} Branches in #{elapsed} seconds."}
@@ -125,7 +132,9 @@ class GitWorker
         unless commits.empty?
           @commits[branch] = commits
         else
-          LOGGER.debug(:Git) {"No commits found. Branch: #{branch} is not ahead of #{@config[:ReleaseBranch]}"}
+          @config[:branches_to_build] -= branch
+          LOGGER.debug(:Git) {
+						"No commits found. Branch: #{branch} is not ahead of #{@config[:ReleaseBranch]}"}
         end
       rescue
         LOGGER.error(:Git) { "Branch: '#{branch}' doesn't exist." }
@@ -153,7 +162,7 @@ class GitWorker
 							:internal => File.expand_path(@config[:repo], '../WorkingDir/internal/'),
 							:external => File.expand_path(@config[:repo], '../WorkingDir/external/'),
 							:source => File.expand_path(@config[:repo], '../WorkingDir/repos/'),
-							:IIS => File.expand_path('WorkingDir/IIS') }
+							:IIS => File.expand_path('../WorkingDir/IIS') }
 	end
 
 end
