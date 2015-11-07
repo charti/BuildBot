@@ -36,11 +36,11 @@ end
 
 module VirtualPipeMethods
 
-  def before_build
+  def before_build msb
     false
   end
 
-  def before_test
+  def before_test nunit
     false
   end
 
@@ -57,7 +57,7 @@ end
 module BuildMethods
 
   def build_all_commits
-    git.all_commits_do do |branch, commit|
+    git.all_commits do |branch, commit|
 			@versioning_required = branch != @current_branch
 			@current_branch = branch
 			@current_commit = commit

@@ -37,7 +37,7 @@ class GitWorker
     @git.merge(commit)
   end
 
-  def all_commits_do
+  def all_commits
 		@skip = []
     @commits.each_pair do |branch, commits|
       next unless commits.is_a?(Array)
@@ -124,7 +124,7 @@ class GitWorker
     LOGGER.info(:Git) { "#{@config[:repo]} successfully loaded on Branch: #{@git.current_branch}" }
   end
 
-  # Gets the commit story of all +MergeBranches+, who are ahead of +ReleaseBranch+
+  # Gets the commit story of all +MergeBranches+, which are ahead of +ReleaseBranch+
 	def load_branch_story
 		@config[:branches_to_build].each do |branch|
       begin
@@ -158,11 +158,11 @@ class GitWorker
 	def initialize_config(repo_config)
 		@config = repo_config
 
-    @paths = { :log => File.expand_path(@config[:repo], '../WorkingDir/log/'),
-							:internal => File.expand_path(@config[:repo], '../WorkingDir/internal/'),
-							:external => File.expand_path(@config[:repo], '../WorkingDir/external/'),
-							:source => File.expand_path(@config[:repo], '../WorkingDir/repos/'),
-							:IIS => File.expand_path('../WorkingDir/IIS') }
+    @paths = { :log      => File.expand_path(@config[:repo], '../WorkingDir/log/'),
+							 :internal => File.expand_path(@config[:repo], '../WorkingDir/internal/'),
+							 :external => File.expand_path(@config[:repo], '../WorkingDir/external/'),
+							 :source   => File.expand_path(@config[:repo], '../WorkingDir/repos/'),
+							 :IIS      => File.expand_path('../WorkingDir/IIS') }
 	end
 
 end
