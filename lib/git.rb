@@ -69,8 +69,7 @@ class GitWorker
 					@git.merge("origin/#{branch}",
 										 "Merge remote-tracking branch #{branch} into #{@git.current_branch}")
 					LOGGER.debug(:Git) { "Merge remote-tracking branch #{branch} into #{@git.current_branch}" }
-
-					yield branch, @git.gcommit(@git.object(@config[:base_branch])), true if block_given?
+					yield branch, @git.gcommit(@git.object(@config[:base_branch])), true
 
           @git.push('origin', @config[:target_branch])
           merged << branch

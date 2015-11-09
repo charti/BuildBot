@@ -18,12 +18,11 @@ class Pipe < BasePipe
 	# optional - default will increase :revision by 1
 	def increase_version version
 		puts 'increased'
-		new_version = "#{version[1]}.#{version[2]}.#{version[3]}." +
-				"#{version[4].to_i + 1}"
+		new_version = "#{version[1]}.#{version[2]}.#{version[3].to_i + 1}." +
+				"#{version[4]}"
 	end
 
 	def build_commit
 		build_web_application('Demoapplication.csproj', 'Demoapplication-Test.csproj')
 	end
-
 end

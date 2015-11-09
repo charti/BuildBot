@@ -74,20 +74,19 @@ module BuildMethods
 	def merge_branches
     reset_branch = @base_branch
     @versioning_required = true
-    git.merge_branches(@new_version)
-    # git.merge_branches(@new_version) do |branch, commit, merged|
-    #   next unless merged
-		#
-    #   @current_branch = branch
-    #   @current_commit = commit
-    #   begin
-    #     build_commit
-    #     reset_branch = @target_branch
-    #   rescue => e
-    #     LOGGER.error(:Build) { "merge failed #{e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t")}" }
-    #     @git.reset_to reset_branch
-    #   end
-    # end
+    git.merge_branches(@new_version) do |branch, commit, merged|
+      next unless merged
+
+      @current_branch = branch
+      @current_commit = commit
+      begin
+        build_commit
+        reset_branch = @target_branch
+      rescue => e
+        LOGGER.error(:Build) { "merge failed #{e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t")}" }
+        @git.reset_to reset_branch
+      end
+    end
 	end
 
   def build_binary(csproj, test_csproj='')

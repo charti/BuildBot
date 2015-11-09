@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'bundler/setup'
+
 config = '../configs/' + ARGV[0] + '.rb'
 
 if File.exist?(config)
