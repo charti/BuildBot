@@ -43,6 +43,14 @@ class JiraWorker
 		pp issue
 	end
 
+	def add_merged_commit commit
+	end
+
+	def add_failed_commit commit
+	end
+
+	private
+
 	def ticket_done(commit_message)
 		/jira:\s?(?<ticket>[\w]+-\d+)\/(?<operation>done|time)/
 	end

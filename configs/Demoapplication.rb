@@ -23,7 +23,6 @@ class Pipe < BasePipe
 	end
 
 	def build_commit
-		#build_binary('InVers.csproj', 'invers-test.csproj')
 		build_web_application('Demoapplication.csproj', 'Demoapplication-Test.csproj')
 	end
 

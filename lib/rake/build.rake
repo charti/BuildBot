@@ -26,7 +26,6 @@ task :start => [:clean, :build, :unit_test, :inspections] do |t|
 end
 
 task :clean do |t|
-	#mv "#{@pipe.git.paths[:internal]}/*CodeAnalysisLog.xml", "@git.paths[:log][:r]/#{}"
   FileUtils.rm_rf(Dir.glob("#{@pipe.git.paths[:internal]}/*"))
   FileUtils.rm_rf(Dir.glob("#{@pipe.git.paths[:IIS]}/*"))
 end
@@ -93,6 +92,7 @@ end
 task :unit_test => [:test_project, :nunit]
 
 test_runner :nunit do |tr|
+	@pipe.before_test
   br = @current_branch.gsub('/', '_')
   dir = @build_type.eql?(:binary) ? "#{@pipe.git.paths[:internal]}" : "#{@pipe.git.paths[:IIS]}"
 	test_file = "#{dir}/#{@unit_test.gsub(/csproj/, '*')}"

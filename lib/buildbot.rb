@@ -1,4 +1,4 @@
-config = '../configs/' + ARGV[0]
+config = '../configs/' + ARGV[0] + '.rb'
 
 if File.exist?(config)
 	require_relative config

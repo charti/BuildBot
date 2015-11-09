@@ -36,11 +36,11 @@ end
 
 module VirtualPipeMethods
 
-  def before_build msb
+  def before_build
     false
   end
 
-  def before_test nunit
+  def before_test
     false
   end
 
