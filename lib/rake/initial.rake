@@ -6,7 +6,8 @@ require 'logger'
 task :init => [:run]
 
 directory '../WorkingDir' do |t|
-	FileUtils.makedirs %w<../WorkingDir/external ../WorkingDir/internal ../WorkingDir/log ../WorkingDir/IIS>
+	FileUtils.makedirs %w(../WorkingDir/external ../WorkingDir/internal ../WorkingDir/log
+../WorkingDir/IIS ../WorkingDir/archive)
 end
 
 directory '../Tools' do

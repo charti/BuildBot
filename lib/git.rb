@@ -3,14 +3,16 @@ require 'date'
 require 'logger'
 require 'rake'
 require 'benchmark'
+require_relative '../lib/jira_worker'
 
 class GitWorker
 
-	attr_reader :git, :commits, :config, :paths
+	attr_reader :git, :commits, :config, :paths#, :jira
 
 	# @param [String] repo_config 'filename.yaml'
 	def initialize(repo_config)
 		initialize_config(repo_config)
+		#@jira = JiraWorker.new
     LOGGER.info(:Git) {"Start Build Process with configuration: '#{@paths[:repo]}'"}
     load_git
     load_branch_story
@@ -27,8 +29,8 @@ class GitWorker
     end
     unless @paths[:log].key?(target)
       @paths[:log].store(target,
-												 "#{@paths[:log][:r]}/#{target}-#{Time.new.strftime("%Y-%m-%d_%H%M%S")}.log")
-      return Logger.new(@paths[:log][target])
+												 "#{@paths[:log][:r]}/#{target}.log")
+      return Logger.new(@paths[:log][target], 'daily')
     end
     raise "targeted Logger #{target} already exists!"
   end
@@ -89,7 +91,6 @@ class GitWorker
         @git.add_tag(new_version) unless new_version.nil?
       end
     end
-
 		LOGGER.info(:Git) {"Merged #{merged.count} Branches in #{elapsed} seconds."}
 		puts merge_branches
   end
@@ -101,11 +102,13 @@ class GitWorker
 
   def skip_branch(branch)
     @skip << branch
+		#TODO: Jira action
+		#@jira.
   end
 
   private
   # Loads +@git+ as [Git::Base]
-  # Clones the repo if necessary. Fetches changes from remote and resets --hard to +ReleaseBranch+
+  # Clones the repo if necessary. Fetches changes from remote and resets --hard to +base_branch+
   def load_git
 		@paths.store(:git, File.dirname('../WorkingDir/repos/' +
 		                                "#{@config[:repo]}/.git/*"))
@@ -144,7 +147,7 @@ class GitWorker
 		LOGGER.info(:Git) { "Branches to merge: #{msg}" }
   end
 
-  # Finds all commits from given Branch down to the +ReleaseBranch+ Head.
+  # Finds all commits from given Branch down to the +base_branch+ Head.
   # @param [String] branch
   # @return [Array]
   def get_commit_story(branch)

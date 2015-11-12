@@ -1,69 +1,51 @@
 require 'jira'
+require 'git'
 require 'pp'
-
-CONSUMER_KEY = 'test'
-SITE         = 'https://testrest.atlassian.net/'
 
 class JiraWorker
 	attr_accessor :client
 
 	def initialize
-		# credentials = YAML.load(File.read('credentials.yaml'))
-		#
-		# if credentials.values.any? {|v| v.eql?''}
-		#   raise "Set Login credentials in #{File.expand_path('credentials.yaml')}"
-		# end
-		#
-		# @client = JIRA::Client.new(
-		#     { :username => credentials[:username],
-		#       :password => credentials[:password],
-		#       :site => 'http://jira.dako.de',
-		#       :context_path => '',
-		#       :auth_type => :basic,
-		#       :use_ssl => false
-		#     })
+		credentials = YAML.load(File.read('../configs/jira.yaml'))
 
+		if credentials.values.any? {|v| v.eql?''}
+		  raise "Set Login credentials in #{File.expand_path('../configs/jira.yaml')}"
+		end
 
-		options = {
-				:private_key_file => "rsakey.pem",
-				:context_path     => '',
-				:consumer_key     => CONSUMER_KEY,
-				:site             => SITE
-		}
+		@client = JIRA::Client.new(
+		    { :username => credentials[:user],
+		      :password => credentials[:password],
+		      :site => credentials[:url],
+		      :context_path => '',
+		      :auth_type => :basic,
+		      :use_ssl => false
+		    })
 
-		@client = JIRA::Client.new(options)
-		access_token = @client.set_access_token('0U5MW7Bq4iZlZbhPRR3IE0F2D6O8VfKA', 'YBOiMI4ZHWMrlX87N1Dv3LnYQuNq1obL')
-
-		project = @client.Project.find('TES')
-
-		issue = @client.Issue.find('TES-1')
-
-
-
-		pp issue
+		LOGGER.info(:Jira) {"Successfully initilized."}
 	end
 
-	def add_merged_commit commit
+	def ticket_failed commit
+		match = /jira:\s?(?<ticket>[\w]+-\d+)\/(?<operation>done)/.match(commit_message)
+
+		return if match[0].nil? ||match[1].nil?
+
+		issue = @client.Issue.find(match[0])
+		comment = issue.comments.build
+		comment.save!("Der Arbeitsstand #{commit.sha} wurde nicht in die Mainline integriert.")
+		transition_review = issue.transitions.build
+		transition_review.save!("transition" => {"id" => '3'})
 	end
 
-	def add_failed_commit commit
+	def ticket_done(commit, publish)
+		match = /jira:\s?(?<ticket>[\w]+-\d+)\/(?<operation>done)/.match(commit_message)
+
+		return if match[0].nil? ||match[1].nil?
+
+		issue = @client.Issue.find(match[0])
+		comment = issue.comments.build
+		comment.save!("Der Arbeitsstand #{commit.sha} wurde erfolgreich geprüft und kann nun"+
+											"getestet werden.")
+		transition_review = issue.transitions.build
+		transition_review.save!("transition" => {"id" => '5'})
 	end
-
-	private
-
-	def ticket_done(commit_message)
-		/jira:\s?(?<ticket>[\w]+-\d+)\/(?<operation>done|time)/
-	end
-
-	def ticket_merged(commit_message)
-
-	end
-
-	private
-	def self.comments(msg)
-
-		comment = @issue.comments.build
-		comment.save!(msg)
-	end
-
 end

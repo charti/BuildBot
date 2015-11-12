@@ -7,6 +7,10 @@ if File.exist?(config)
 	require_relative config
 
 	begin
+		Dir["../WorkingDir/log/**/*"].each do |f|
+			FileUtils.rm f
+		end
+
 		instance = Pipe.new
 	rescue => e
 		puts e.pretty_inspect

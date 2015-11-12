@@ -18,35 +18,28 @@ task :execute, [:pipe, :csproj, :unit_test,
     @pipe.tasks[@build_type].reenable
     t.reenable
   end
-  puts t
 end
 
-task :start => [:clean, :build, :unit_test, :inspections] do |t|
-  puts t
-end
+task :start => [:clean, :build, :unit_test, :inspections]
 
 task :clean do |t|
+	LOGGER.info(:Build) {"Starting Clean"}
   FileUtils.rm_rf(Dir.glob("#{@pipe.git.paths[:internal]}/*"))
   FileUtils.rm_rf(Dir.glob("#{@pipe.git.paths[:IIS]}/*"))
 end
 
 task :build => [:versioning, :copy_configs] do|t|
-  puts t.name
   br = @current_branch.gsub('/','_')
   unless Dir.exist?("#{@pipe.git.paths[:log][:r]}/build/")
     mkdir_p %W(#{@pipe.git.paths[:log][:r]}/build/ #{@pipe.git.paths[:internal]}/
-								#{@pipe.git.paths[:log][:r]}/inspections/) #{@pipe.git
-		# .paths[:external]}/#{br}
+								#{@pipe.git.paths[:log][:r]}/inspections/)
   end
   @pipe.before_build
 
   @pipe.tasks[@build_type].invoke
-
-	puts :test
 end
 
 task :versioning do |t|
-  puts "#{t} #{@pipe.versioning_required.to_s}"
   if @pipe.versioning_required
 
     assemblies = FileList.new("#{@pipe.git.paths[:source]}/*/Properties/AssemblyInfo.cs")
@@ -76,9 +69,7 @@ task :versioning do |t|
   end
 end
 
-#TODO copy_configs
 task :copy_configs do
-  puts :copy_configs
   config_examples = FileList.new("#{@pipe.git.paths[:source]}/*/*.example")
   next if config_examples.empty?
 
@@ -104,6 +95,7 @@ test_runner :nunit do |tr|
 end
 
 build :binary do |msb|
+	LOGGER.info(:Build) {"Start building #{@csproj}"}
   br = @current_branch.gsub('/', '_')
 
   msb.file = Dir.glob("#{@pipe.git.paths[:source]}/*/#{@csproj}").first
@@ -111,17 +103,17 @@ build :binary do |msb|
   msb.prop :Configuration, 'Release'
   msb.prop :DebugType, 'pdbonly'
 
-  msb.prop :DebugType, 'pdbonly'
   msb.prop :ExcludeGeneratedDebugSymbol, false
   msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@csproj}.log")};Verbosity=detailed;"
-	#msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset"
   msb.cores = 2
   msb.prop :Outdir, "#{@pipe.git.paths[:internal]}/"
   msb.nologo
+	#msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset" FxCop Code Analysis
 end
 
 build :web_application do |msb|
+	LOGGER.info(:Build) {"Start building #{@csproj}"}
   br = @current_branch.gsub('/', '_')
 
   msb.file = Dir.glob("#{@pipe.git.paths[:source]}/*/#{@csproj}").first
@@ -151,10 +143,11 @@ build :web_application do |msb|
   msb.prop :Outdir, "#{@pipe.git.paths[:IIS]}/"
   msb.add_parameter "/flp:LogFile=#{File.join("#{@pipe.git.paths[:log][:r]}/build/",
                                               "#{@current_commit}-#{@csproj}.log")};Verbosity=detailed;"
-  #msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset"
+  #msb.add_parameter "/p:RunCodeAnalysis=True;CodeAnalysisRuleSet=AllRules.ruleset" FxCop Code Analysis
 end
 
 build :test_project do |msb|
+	LOGGER.info(:Build) {"Start building #{@unit_test}"}
   br = @current_branch.gsub('/', '_')
 
   msb.file = Dir.glob("#{@pipe.git.paths[:source]}/*/#{@unit_test}").first
@@ -176,6 +169,7 @@ task :inspections do |t|
 		dir = @build_type.eql?(:binary) ? "#{@pipe.git.paths[:internal]}" : "#{@pipe.git.paths[:IIS]}"
 		case_insansitive = File::FNM_CASEFOLD
 		files = Dir.glob("#{dir}/#{@csproj.gsub('.csproj', '')}.{exe,dll}", case_insansitive)
+		LOGGER.info(:Build) {"Start inspections for #{files}"}
 
 		files.each do |file|
 			basename = File.basename(file)

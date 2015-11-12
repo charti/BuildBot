@@ -1,6 +1,7 @@
 require 'rake'
 require 'tempfile'
 require 'yaml'
+require 'zip/zipfilesystem'
 
 require_relative '../lib/git'
 
@@ -15,6 +16,13 @@ module Tools
     end
   end
 
+	def self.create_zip(src, out)
+		Zip::ZipFile::open(out, Zip::ZipFile::CREATE) do |z|
+			Dir[src].each do |f|
+				z.add(f, f)
+			end
+		end
+	end
 
 	def self.edit_file(src, out = src, &block)
 		edited = [ ]
@@ -64,6 +72,7 @@ module BuildMethods
 			puts "#{@current_branch} #{@current_commit}"
 			begin
 				build_commit
+				LOGGER.info(:Build) {"#{commit.sha} successfully tested."}
 			rescue => e
 				LOGGER.error(:Build) { e.message.gsub(/[^\S\r\n]{2,}/, '').gsub(/[\r\n]+/, "\n\t") }
 				@git.skip_branch(branch)
@@ -109,6 +118,16 @@ module BuildMethods
     end
   end
 
+	def archive_all
+		@archive = "../WorkingDir/archive/#{@repo}-#{@new_version}.zip"
+
+		FileUtils.rm @archive if File.exist?(@archive)
+
+		Tools::create_zip("../WorkingDir/log/#{@repo}/**/*", @archive)
+		Tools::create_zip("../WorkingDir/IIS/**/*", @archive)
+		Tools::create_zip("../WorkingDir/external/#{repo}/**/*", @archive)
+		Tools::create_zip("../WorkingDir/internal/#{repo}/**/*", @archive)
+	end
 end
 
 
@@ -125,6 +144,8 @@ module PipeMethods
     build_all_commits
 
 		merge_branches
+
+		archive_all
   end
 
   def setup_repo
